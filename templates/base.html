@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ system_title }}{% endblock %}</title>
+    
+    <!-- Favicon and Icons -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicons/favicon.ico') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicons/favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/favicons/favicon-16x16.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicons/favicon-32x32.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/favicons/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='img/favicons/site.webmanifest') }}">
+    <meta name="msapplication-config" content="{{ url_for('static', filename='img/favicons/browserconfig.xml') }}">
+    
+    <!-- Theme colors for mobile browsers -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="msapplication-TileColor" content="#667eea">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    {% block head %}{% endblock %}
+    <style>
+        :root {
+            --scroll-card-offset: 110px; /* reserve ~110px (search toolbar + card padding + pagination buffer) so pagination stays visible */
+            --scroll-card-max-height: calc(100vh - var(--header-height, 70px) - var(--scroll-card-offset));
+        }
+        .is-hidden {
+            display: none !important;
+        }
+        /* Disable transitions on initial load to prevent sidebar flash */
+        .preload * {
+            transition: none !important;
+        }
+        /* Shared table scroll helpers */
+        .scroll-card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 0;
+            max-height: var(--scroll-card-max-height); /* leave room for header + toolbar/padding */
+        }
+        .scroll-card-body .table-container {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+        }
+        .scroll-card-body .pagination-container {
+            position: sticky;
+            bottom: 0;
+            background: #fff;
+            padding: 10px 0 6px;
+            margin-top: 8px;
+            box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.03);
+            z-index: 5;
+        }
+        /* Tablet/mobile admin layout fixes */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            .sidebar-toggle {
+                display: none !important;
+            }
+            .mobile-menu-toggle {
+                display: inline-flex !important;
+            }
+            .main-content {
+                margin-left: 0 !important;
+            }
+            body.sidebar-collapsed .sidebar {
+                width: 260px;
+            }
+            body.sidebar-collapsed .nav-item {
+                font-size: inherit;
+                padding: 14px 20px;
+                text-align: left;
+            }
+            body.sidebar-collapsed .nav-item i {
+                margin-right: 8px;
+                font-size: inherit;
+            }
+            body.sidebar-collapsed .sidebar-logo {
+                font-size: 18px;
+                padding: 18px;
+            }
+            body.sidebar-collapsed .sidebar-logo::after {
+                content: '';
+            }
+            .content {
+                padding: 20px !important;
+            }
+        }
+    </style>
+</head>
+<body class="preload">
+    <script>
+        (function() {
+            try {
+                const MOBILE_BREAKPOINT = 768;
+                const saved = localStorage.getItem('adminSidebarCollapsed');
+                const collapsed = saved === null ? true : (saved === '1' || saved === 'true'); // accept legacy '1'/'0' and boolean strings
+                const shouldCollapse = window.innerWidth > MOBILE_BREAKPOINT && collapsed;
+                if (shouldCollapse) {
+                    document.body.classList.add('sidebar-collapsed');
+                }
+            } catch (e) {
+                /* ignore */
+            }
+            // Remove preload class after a short delay to enable transitions
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    document.body.classList.remove('preload');
+                }, 100);
+            });
+        })();
+    </script>
+    {% block body %}{% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

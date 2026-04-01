@@ -1,0 +1,1609 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block head %}
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    :root {
+        --mail-list-height: calc(100vh - 220px);
+        --highlight-border: #c7d2fe;
+        --highlight-glow: rgba(102, 126, 234, 0.08);
+        --mail-body-max-height: 75vh;
+        --mail-view-height: calc(100vh - 260px);
+    }
+    
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
+        min-height: 100vh;
+        padding: 20px;
+        animation: gradientShift 10s ease infinite;
+    }
+    
+    @keyframes gradientShift {
+        0%, 100% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        50% { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+    }
+    
+    .container {
+        width: 100%;
+        max-width: none;
+        margin: 0 auto;
+    }
+    
+    .header {
+        text-align: center;
+        color: white;
+        margin-bottom: 30px;
+        animation: fadeInDown 1s ease-out;
+    }
+    
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .header h1 {
+        font-size: 32px;
+        margin-bottom: 10px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .header p {
+        font-size: 16px;
+        opacity: 0.9;
+    }
+    
+    .mail-input-card {
+        background: white;
+        border-radius: 20px;
+        padding: 36px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 6px 18px rgba(0,0,0,0.08);
+        margin: 0 auto 30px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.25);
+        animation: fadeInUp 1s ease-out 0.3s both;
+        width: 100%;
+        max-width: none;
+    }
+    
+    .control-row {
+        display: grid;
+        grid-template-columns: minmax(240px, 360px) minmax(400px, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+        align-items: start;
+    }
+    
+    .control-block {
+        background: rgba(255,255,255,0.92);
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        height: 100%;
+    }
+    
+    .control-block label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 700;
+        color: #2d2f36;
+        letter-spacing: 0.02em;
+    }
+    
+    .control-flex {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    
+    .control-flex input {
+        margin: 0;
+    }
+    
+    .control-flex .highlight-input:not(.count-input) {
+        flex: 0 1 320px;
+        min-width: 220px;
+        max-width: 360px;
+    }
+    
+    .count-input {
+        width: 110px;
+        max-width: 120px;
+        flex: 0 0 110px;
+    }
+    
+    .mail-layout {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 24px;
+        align-items: stretch;
+    }
+    
+    .folder-panel {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .folder-title {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 4px;
+    }
+    
+    .folder-btn {
+        border: 1px solid #e5e7eb;
+        background: white;
+        padding: 12px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        color: #374151;
+        transition: all 0.2s ease;
+    }
+    
+    .folder-btn.active {
+        border-color: #667eea;
+        color: #667eea;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.2);
+    }
+    
+    .mail-list-panel {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 14px 32px rgba(0,0,0,0.08);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: var(--mail-list-height);
+        height: var(--mail-list-height);
+    }
+
+    .mail-list-view {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .mail-list-wrapper {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        margin-bottom: 8px;
+    }
+
+    .mail-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+    
+    .mail-table th, .mail-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #f1f5f9;
+        text-align: left;
+        font-size: 14px;
+    }
+
+    .mail-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 700;
+    }
+
+    .mail-table .col-subject,
+    .mail-table .col-from,
+    .mail-table .col-to,
+    .mail-table .col-date {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+    
+    .mail-table tr:hover {
+        background: #f9fafb;
+    }
+    
+    .mail-table tr.active {
+        background: #eef2ff;
+    }
+    
+    .mail-list-empty {
+        text-align: center;
+        color: #94a3b8;
+        padding: 20px 0;
+    }
+    
+    .mail-pagination {
+        margin-top: 12px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 10px 0 4px;
+        border-top: 1px solid #e5e7eb;
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.03);
+        flex-shrink: 0;
+    }
+
+    .pagination-info {
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .page-size-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .page-size-control select {
+        padding: 8px 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #fff;
+    }
+
+    .pagination-buttons {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .page-btn {
+        padding: 8px 12px;
+        border: 1px solid #e5e7eb;
+        background: white;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .page-btn:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+    }
+
+    .page-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 响应式适配 - 平板与手机 */
+@media (max-width: 1024px) {
+    body {
+        padding: 16px;
+    }
+    .mail-input-card {
+        padding: 24px;
+    }
+    .control-row {
+        grid-template-columns: 1fr;
+    }
+    .control-flex .highlight-input:not(.count-input) {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+    .count-input {
+        flex: 1 1 120px;
+        max-width: 140px;
+    }
+    .mail-layout {
+        grid-template-columns: 1fr;
+    }
+    .mail-list-panel {
+        height: auto;
+        min-height: 420px;
+    }
+}
+
+@media (max-width: 640px) {
+    body {
+        padding: 12px;
+    }
+    .header h1 {
+        font-size: 26px;
+    }
+    .header p {
+        font-size: 14px;
+    }
+    .mail-input-card {
+        padding: 18px;
+    }
+    .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .get-mail-btn {
+        width: 100%;
+    }
+    .mail-table th, .mail-table td {
+        font-size: 13px;
+        padding: 10px 8px;
+    }
+    .folder-btn {
+        font-size: 14px;
+    }
+    .mail-pagination {
+        justify-content: center;
+    }
+}
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .input-group {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        position: relative;
+        align-items: stretch;
+    }
+    
+    .input-group input {
+        flex: 2;
+        padding: 18px 20px;
+        border: 2px solid #e1e1e1;
+        border-radius: 12px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        background: rgba(255,255,255,0.95);
+        position: relative;
+    }
+    
+    .input-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        background: white;
+        transform: translateY(-2px);
+    }
+    
+    .input-group input:valid {
+        border-color: #28a745;
+    }
+    
+    .get-mail-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 18px 35px;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        position: relative;
+        overflow: hidden;
+        flex: 0 0 auto;
+        min-width: 120px;
+    }
+    
+    .get-mail-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s;
+    }
+    
+    .get-mail-btn:hover::before {
+        left: 100%;
+    }
+    
+    .get-mail-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    .get-mail-btn:active {
+        transform: translateY(-1px);
+    }
+    
+    .get-mail-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .loading {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #667eea;
+        font-size: 16px;
+        padding: 12px;
+        font-weight: 600;
+        position: absolute;
+        inset: 0;
+        background: rgba(255,255,255,0.8);
+        backdrop-filter: blur(2px);
+        z-index: 2;
+    }
+    
+    .loading::after {
+        content: '';
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #667eea;
+        border-radius: 50%;
+        border-top: 2px solid transparent;
+        animation: spin 1s linear infinite;
+        margin-left: 10px;
+        vertical-align: middle;
+    }
+
+    .secure-input {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    
+    .highlight-input {
+        width: 100%;
+        padding: 16px 18px;
+        border-radius: 14px;
+        border: 2px solid var(--highlight-border);
+        background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.9));
+        box-shadow: 0 0 0 2px var(--highlight-glow), 0 10px 30px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,0.6) inset;
+        color: #1f2937;
+        transition: all 0.25s ease;
+    }
+
+    .short-master-key {
+        max-width: 320px;
+    }
+    
+    .highlight-input:focus {
+        outline: none;
+        border-color: rgba(102,126,234,0.8);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.18), 0 12px 30px rgba(102,126,234,0.16);
+        transform: translateY(-1px);
+    }
+    
+    .highlight-input::placeholder {
+        color: #9ca3af;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .mail-display {
+        background: white;
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 14px 32px rgba(0,0,0,0.08);
+        display: none;
+        border: 1px solid #e5e7eb;
+        animation: fadeInUp 0.5s ease-out;
+        height: var(--mail-view-height);
+        flex: 1 1 var(--mail-view-height);
+        overflow: auto;
+        flex-direction: column;
+    }
+
+    .mail-display.is-visible {
+        display: flex;
+    }
+
+    .mail-display-actions {
+        display: flex;
+        justify-content: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .back-btn {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e5e7eb;
+        padding: 8px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .back-btn:hover {
+        background: #e5e7eb;
+    }
+    
+    .mail-header {
+        border-bottom: 2px solid #f1f1f1;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .mail-subject {
+        font-size: 24px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 15px;
+        line-height: 1.3;
+    }
+    
+    .mail-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .mail-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .mail-meta-label {
+        font-weight: 600;
+        color: #667eea;
+        min-width: 60px;
+    }
+    
+    .mail-body {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 24px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 15px;
+        line-height: 1.7;
+        border: 1px solid #e9ecef;
+        word-wrap: break-word;
+        word-break: break-word;
+        flex: 1;
+        min-height: 280px;
+        max-height: var(--mail-body-max-height);
+    }
+    
+    /* Image display styles */
+    .mail-images {
+        margin-top: 20px;
+    }
+    
+    .image-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 15px;
+    }
+    
+    .image-item {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+    }
+    
+    .image-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .image-item img {
+        max-width: 300px;
+        max-height: 200px;
+        width: auto;
+        height: auto;
+        display: block;
+        cursor: pointer;
+    }
+    
+    .image-info {
+        padding: 10px;
+        font-size: 12px;
+        color: #666;
+        border-top: 1px solid #eee;
+    }
+    
+    /* Attachments display styles */
+    .mail-attachments {
+        margin-top: 20px;
+    }
+    
+    .attachment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .attachment-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        transition: background-color 0.2s ease;
+    }
+    
+    .attachment-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .attachment-icon {
+        font-size: 24px;
+        margin-right: 12px;
+        color: #667eea;
+    }
+    
+    .attachment-info {
+        flex: 1;
+    }
+    
+    .attachment-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 2px;
+    }
+    
+    .attachment-meta {
+        font-size: 12px;
+        color: #666;
+    }
+    
+    .attachment-download {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .attachment-download:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* Image modal styles */
+    .image-modal {
+        display: none;
+        position: fixed;
+        z-index: 3000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.8);
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .image-modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .image-modal-content {
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        animation: slideIn 0.3s ease;
+    }
+    
+    .image-modal-close {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: white;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 3001;
+    }
+    
+    .image-modal-close:hover {
+        opacity: 0.7;
+    }
+    
+    .message {
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        font-weight: 500;
+    }
+    
+    .message.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .message.info {
+        background: #cce7ff;
+        color: #004085;
+        border: 1px solid #b3d7ff;
+    }
+    
+    /* Toast Notifications */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 3000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 500px;
+    }
+    
+    .toast {
+        padding: 15px 20px;
+        border-radius: 10px;
+        color: white;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transform: translateX(550px);
+        opacity: 0;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+    
+    .toast.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .toast.success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    .toast.error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .toast.info {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+    
+    .toast::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        background: rgba(255,255,255,0.8);
+        animation: toastProgress 3s linear;
+    }
+    
+    @keyframes toastProgress {
+        from { width: 100%; }
+        to { width: 0%; }
+    }
+    
+    @media (max-width: 768px) {
+        .container {
+            padding: 0 10px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+        }
+        
+        .control-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .control-flex {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .count-input {
+            width: 100%;
+        }
+        
+        .mail-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .mail-list-panel {
+            min-height: 0;
+            max-height: none;
+            height: auto;
+        }
+
+        .mail-list-wrapper {
+            min-height: 0;
+        }
+        
+        .mail-input-card, .mail-display {
+            padding: 20px;
+        }
+        
+        .mail-meta {
+            grid-template-columns: 1fr;
+        }
+
+    }
+
+    /* iPad / tablet friendly adjustments */
+    @media (max-width: 1024px) {
+        body {
+            padding: 14px;
+        }
+
+        .container {
+            width: 100%;
+            padding: 0;
+        }
+
+        .mail-input-card {
+            padding: 22px;
+        }
+
+        .control-row {
+            grid-template-columns: 1fr;
+        }
+
+        .control-flex {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .control-flex .highlight-input:not(.count-input),
+        .count-input {
+            width: 100%;
+            max-width: none;
+            flex: 1 1 auto;
+        }
+
+        .mail-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .mail-list-panel {
+            height: auto;
+            min-height: 0;
+        }
+
+        .mail-list-wrapper {
+            max-height: 50vh;
+        }
+
+        .mail-table th, .mail-table td {
+            font-size: 13px;
+            padding: 10px 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<!-- Toast notification container -->
+<div id="toast-container" class="toast-container"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>📧 邮件查看系统</h1>
+        </div>
+    
+    <div class="mail-input-card">
+            <div class="control-row">
+                <div class="control-block">
+                    <label for="masterKeyInput">管理员万能秘钥</label>
+                    <div class="secure-input">
+                        <input type="text" id="masterKeyInput" class="form-control highlight-input short-master-key" placeholder="设置后的万能秘钥可免卡密取件">
+                    </div>
+                </div>
+                <div class="control-block control-flex">
+                    <input type="email" id="emailInput" class="highlight-input" placeholder="请输入邮箱地址 (例: user@example.com)" required>
+                    <input type="number" id="emailCountInput" class="form-control count-input highlight-input" min="1" max="100" value="1" placeholder="收取封数">
+                    <button class="get-mail-btn" onclick="getMail()">获取邮件</button>
+                </div>
+            </div>
+        
+        <div class="mail-layout">
+            <div class="folder-panel">
+                <div class="folder-title">邮箱文件夹</div>
+                <button class="folder-btn active" data-folder="inbox" onclick="switchFolder('inbox')">📥 收件箱</button>
+                <button class="folder-btn" data-folder="trash" onclick="switchFolder('trash')">🗑️ 垃圾箱</button>
+            </div>
+            <div class="mail-list-panel" id="mailListPanel">
+                <div class="loading" id="loading">正在获取邮件，请稍候...</div>
+                <div class="mail-list-view" id="mailListView">
+                    <div class="mail-list-wrapper">
+                        <table class="mail-table">
+                            <colgroup>
+                                <col style="width: 8%;">
+                                <col style="width: 34%;">
+                                <col style="width: 22%;">
+                                <col style="width: 22%;">
+                                <col style="width: 14%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th class="col-index">序号</th>
+                                    <th class="col-subject">标题</th>
+                                    <th class="col-from">发件人</th>
+                                    <th class="col-to">收件人</th>
+                                    <th class="col-date">时间</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mailTableBody">
+                                <tr><td colspan="5" class="mail-list-empty">暂无邮件</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mail-pagination" id="mailPagination"></div>
+                </div>
+                <div class="mail-display" id="mailDisplay">
+                    <div class="mail-display-actions">
+                        <button class="back-btn" type="button" onclick="backToList()" aria-label="返回邮件列表">← 返回邮件列表</button>
+                    </div>
+                    <div class="mail-header">
+                        <div class="mail-subject" id="mailSubject"></div>
+                        <div class="mail-meta">
+                            <div class="mail-meta-item">
+                                <span class="mail-meta-label">发件人:</span>
+                                <span id="mailFrom"></span>
+                            </div>
+                            <div class="mail-meta-item">
+                                <span class="mail-meta-label">收件人:</span>
+                                <span id="mailTo"></span>
+                            </div>
+                            <div class="mail-meta-item">
+                                <span class="mail-meta-label">时间:</span>
+                                <span id="mailDate"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mail-body" id="mailBody"></div>
+                    
+                    <!-- Images section -->
+                    <div class="mail-images" id="mailImages" style="display: none;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">📷 图片内容</h4>
+                        <div class="image-container" id="imageContainer"></div>
+                    </div>
+                    
+                    <!-- Attachments section -->
+                    <div class="mail-attachments" id="mailAttachments" style="display: none;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">📎 附件</h4>
+                        <div class="attachment-list" id="attachmentList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div id="imageModal" class="image-modal">
+    <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+    <img class="image-modal-content" id="modalImage">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const mailState = { mails: [], folder: 'inbox', page: 1, perPage: 30, activeMailId: null };
+    const REQUEST_FOLDER_MAP = { inbox: 'INBOX', trash: 'Trash' };
+    
+    document.getElementById('emailInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            getMail();
+        }
+    });
+    
+    function normalizeMailId(value) {
+        if (value === undefined || value === null) return null;
+        return String(value);
+    }
+    
+    function generateMailId(index = 0) {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}-${index}`;
+    }
+    
+    function openMailModal() {
+        const mailDisplay = document.getElementById('mailDisplay');
+        const listView = document.getElementById('mailListView');
+        if (listView) {
+            listView.style.display = 'none';
+        }
+        mailDisplay?.classList.add('is-visible');
+    }
+    
+    function closeMailModal(shouldResetSelection = false) {
+        const mailDisplay = document.getElementById('mailDisplay');
+        const listView = document.getElementById('mailListView');
+        mailDisplay?.classList.remove('is-visible');
+        if (listView) {
+            listView.style.display = '';
+        }
+        if (shouldResetSelection) {
+            mailState.activeMailId = null;
+            highlightMainTableActiveRow();
+        }
+    }
+    
+    function normalizeFolderName(name) {
+        const lower = (name || '').toLowerCase();
+        if (lower.includes('trash') || lower.includes('deleted') || lower.includes('junk') || lower.includes('spam')) {
+            return 'trash';
+        }
+        return 'inbox';
+    }
+    
+    function formatDateTime(value) {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return value;
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+    
+    function toggleLoading(isLoading) {
+        const loading = document.getElementById('loading');
+        const getMailBtn = document.querySelector('.get-mail-btn');
+        if (loading) {
+            loading.style.display = isLoading ? 'flex' : 'none';
+        }
+        if (getMailBtn) {
+            getMailBtn.disabled = isLoading;
+            getMailBtn.textContent = isLoading ? '获取中...' : '获取邮件';
+        }
+    }
+
+    function appendConnectionInfo(message, proxyData, connectionType) {
+        const text = message || '';
+        const hasConnectionInfo = /\(直连\)|\(代理\)/.test(text);
+        if (hasConnectionInfo) return text;
+
+        const useProxy = connectionType === 'proxy' || (proxyData && proxyData.enabled);
+        return `${text} ${useProxy ? '(代理)' : '(直连)'}`;
+    }
+    
+    function switchFolder(folder) {
+        mailState.folder = folder;
+        document.querySelectorAll('.folder-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.folder === folder);
+        });
+        renderMailList();
+        if (mailState.activeMailId) {
+            const activeMail = mailState.mails.find(item => item.id === mailState.activeMailId);
+            if (activeMail) {
+                displayMail(activeMail);
+            }
+        }
+    }
+    
+    async function getMail() {
+        const emailInput = document.getElementById('emailInput');
+        const masterKeyInput = document.getElementById('masterKeyInput');
+        const mailDisplay = document.getElementById('mailDisplay');
+        const emailCountInput = document.getElementById('emailCountInput');
+        
+        const email = emailInput.value.trim();
+        const masterKey = (masterKeyInput?.value || '').trim();
+        const emailLimit = Math.min(Math.max(parseInt(emailCountInput.value, 10) || 1, 1), 100);
+        
+        if (!email) {
+            showToast('请输入邮箱地址', 'error');
+            return;
+        }
+        
+        if (!isValidEmail(email)) {
+            showToast('请输入有效的邮箱地址', 'error');
+            return;
+        }
+        
+        closeMailModal(false);
+        toggleLoading(true);
+        
+        try {
+            const loginResponse = await fetch('/api/check_login', {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+            
+            const loginData = await loginResponse.json();
+            
+            const requestData = {
+                email: email,
+                email_index: 0,
+                email_limit: emailLimit,
+                folder: REQUEST_FOLDER_MAP[mailState.folder] || 'INBOX'
+            };
+            
+            if (masterKey) {
+                requestData.master_key = masterKey;
+                requestData.admin_access = true;
+            }
+            
+            if (loginData.logged_in) {
+                requestData.admin_access = true;
+                showToast('已检测到管理员登录状态，免卡密访问', 'info', 3000);
+            } else if (!masterKey) {
+                showToast('您尚未登录管理员账户，请使用卡密或万能秘钥访问', 'warning', 4000);
+            }
+            
+            const response = await fetch('/api/get_mail', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(requestData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const fetchedMails = data.mails || (data.mail ? [data.mail] : []);
+                if (fetchedMails.length === 0) {
+                    mailState.mails = [];
+                    mailState.activeMailId = null;
+                    renderMailList();
+                    mailDisplay.classList.remove('is-visible');
+                    closeMailModal(true);
+                    const infoMessage = appendConnectionInfo(data.message || '邮箱中暂无邮件', data.proxy, data.connection);
+                    showToast(infoMessage, 'info');
+                    return;
+                }
+                
+                mailState.mails = fetchedMails.map((item, index) => {
+                    const derivedId = item.id ?? generateMailId(index);
+                    return {
+                        id: normalizeMailId(derivedId),
+                        subject: item.subject || '(无主题)',
+                        from: item.from || '未知',
+                        to: item.to || email,
+                        date: item.date || '',
+                        body: item.body || '',
+                        body_type: item.body_type || 'text',
+                        images: item.images || [],
+                        attachments: item.attachments || [],
+                        folder: normalizeFolderName(item.folder || mailState.folder)
+                    };
+                });
+                mailState.page = 1;
+                mailState.activeMailId = null;
+                
+                const successMessage = appendConnectionInfo(
+                    data.message || `成功获取 ${mailState.mails.length} 封邮件`,
+                    data.proxy,
+                    data.connection
+                );
+                showToast(successMessage, 'success');
+                renderMailList();
+            } else {
+                const errorMessage = appendConnectionInfo(data.message || '获取邮件失败', data.proxy, data.connection);
+                showToast(errorMessage, 'error', 5000);
+            }
+            
+        } catch (error) {
+            console.error('请求失败:', error);
+            showToast('网络请求失败，请检查网络连接', 'error');
+        } finally {
+            toggleLoading(false);
+        }
+    }
+    
+    function renderMailList() {
+        const tbody = document.getElementById('mailTableBody');
+        const filtered = mailState.mails.filter(mail => mail.folder === mailState.folder);
+        const totalPages = Math.max(1, Math.ceil(filtered.length / mailState.perPage));
+        mailState.page = Math.min(mailState.page, totalPages);
+        const start = (mailState.page - 1) * mailState.perPage;
+        const pageData = filtered.slice(start, start + mailState.perPage);
+        
+        if (tbody) {
+            tbody.innerHTML = '';
+            if (pageData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="mail-list-empty">暂无邮件</td></tr>`;
+            } else {
+                pageData.forEach((mail, idx) => {
+                    const row = document.createElement('tr');
+                    const mailId = normalizeMailId(mail.id);
+                    row.classList.toggle('active', mailId !== null && mailId === mailState.activeMailId);
+                    row.dataset.mailId = mailId ?? '';
+                    row.innerHTML = `
+                        <td class="col-index">${start + idx + 1}</td>
+                        <td class="col-subject">${escapeHtml(mail.subject || '（无主题）')}</td>
+                        <td class="col-from">${escapeHtml(mail.from || '-')}</td>
+                        <td class="col-to">${escapeHtml(mail.to || '-')}</td>
+                        <td class="col-date">${formatDateTime(mail.date)}</td>
+                    `;
+                    row.addEventListener('click', () => {
+                        mailState.activeMailId = normalizeMailId(mail.id);
+                        displayMail(mail);
+                        renderMailList();
+                    });
+                    tbody.appendChild(row);
+                });
+            }
+        }
+        
+        renderPagination(filtered.length, totalPages);
+        highlightMainTableActiveRow();
+    }
+    
+    function renderPagination(totalCount, totalPagesOverride) {
+        const container = document.getElementById('mailPagination');
+        if (!container) return;
+        const totalPages = totalPagesOverride || Math.max(1, Math.ceil(totalCount / mailState.perPage));
+        mailState.page = Math.min(mailState.page, totalPages);
+        
+        let html = `<div class="pagination-info">共 ${totalCount} 封邮件，第 ${mailState.page} / ${totalPages} 页</div>`;
+        html += `<div class="page-size-control">
+            <label for="mailPerPageSelect">每页</label>
+            <select id="mailPerPageSelect" onchange="changeMailPerPage()">
+                <option value="30" ${mailState.perPage === 30 ? 'selected' : ''}>30条</option>
+                <option value="60" ${mailState.perPage === 60 ? 'selected' : ''}>60条</option>
+                <option value="100" ${mailState.perPage === 100 ? 'selected' : ''}>100条</option>
+                <option value="150" ${mailState.perPage === 150 ? 'selected' : ''}>150条</option>
+            </select>
+        </div>`;
+        if (totalPages > 1) {
+            html += '<div class="pagination-buttons">';
+            if (mailState.page > 1) {
+                html += `<button class="page-btn" onclick="gotoMailPage(${mailState.page - 1})">« 上一页</button>`;
+            }
+            let startPage = Math.max(1, mailState.page - 2);
+            let endPage = Math.min(totalPages, mailState.page + 2);
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="gotoMailPage(1)">1</button>`;
+                if (startPage > 2) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+            }
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === mailState.page ? 'active' : '';
+                html += `<button class="page-btn ${activeClass}" onclick="gotoMailPage(${i})">${i}</button>`;
+            }
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+                html += `<button class="page-btn" onclick="gotoMailPage(${totalPages})">${totalPages}</button>`;
+            }
+            if (mailState.page < totalPages) {
+                html += `<button class="page-btn" onclick="gotoMailPage(${mailState.page + 1})">下一页 »</button>`;
+            }
+            html += '</div>';
+        }
+        container.innerHTML = html;
+    }
+    function highlightMainTableActiveRow() {
+        document.querySelectorAll('#mailTableBody tr').forEach(row => {
+            row.classList.toggle('active', mailState.activeMailId !== null && row.dataset.mailId === mailState.activeMailId);
+        });
+    }
+    
+    function changeMailPerPage() {
+        const select = document.getElementById('mailPerPageSelect');
+        mailState.perPage = parseInt(select?.value, 10) || 10;
+        mailState.page = 1;
+        renderMailList();
+    }
+
+    function gotoMailPage(page) {
+        mailState.page = Math.max(1, page);
+        renderMailList();
+    }
+
+    const SCROLL_BEHAVIOR = (typeof CSS !== 'undefined' && CSS.supports && CSS.supports('scroll-behavior', 'smooth')) ? 'smooth' : 'auto';
+
+    function backToList() {
+        const panel = document.getElementById('mailListPanel');
+        mailState.activeMailId = null;
+        renderMailList();
+        closeMailModal(false);
+        if (panel) {
+            panel.scrollIntoView({ behavior: SCROLL_BEHAVIOR, block: 'start' });
+        }
+    }
+    
+    function displayMail(mail) {
+        const mailDisplay = document.getElementById('mailDisplay');
+        if (!mail) {
+            closeMailModal(true);
+            return;
+        }
+        document.getElementById('mailSubject').textContent = mail.subject || '(无主题)';
+        document.getElementById('mailFrom').textContent = mail.from || '未知';
+        document.getElementById('mailTo').textContent = mail.to || '未知';
+        document.getElementById('mailDate').textContent = formatDateTime(mail.date);
+        
+        const mailBodyElement = document.getElementById('mailBody');
+        if (mail.body_type === 'html') {
+            mailBodyElement.innerHTML = mail.body || '(邮件内容为空)';
+            mailBodyElement.style.whiteSpace = 'normal';
+        } else {
+            mailBodyElement.textContent = mail.body || '(邮件内容为空)';
+            mailBodyElement.style.whiteSpace = 'pre-wrap';
+        }
+        
+        displayImages(mail.images || []);
+        displayAttachments(mail.attachments || []);
+        
+        mailDisplay?.classList.add('is-visible');
+        openMailModal();
+    }
+    
+    function displayImages(images) {
+        const imagesSection = document.getElementById('mailImages');
+        const imageContainer = document.getElementById('imageContainer');
+        
+        if (images && images.length > 0) {
+            imageContainer.innerHTML = '';
+            
+            images.forEach((image) => {
+                const imageItem = document.createElement('div');
+                imageItem.className = 'image-item';
+                
+                const img = document.createElement('img');
+                img.src = 'data:' + image.mime_type + ';base64,' + image.content;
+                img.alt = image.filename;
+                img.onclick = () => openImageModal(img.src);
+                
+                const imageInfo = document.createElement('div');
+                imageInfo.className = 'image-info';
+                imageInfo.innerHTML = `
+                    <div class="attachment-name">${escapeHtml(image.filename)}</div>
+                    <div class="attachment-meta">${formatFileSize(image.size)} • ${image.mime_type}</div>
+                `;
+                
+                imageItem.appendChild(img);
+                imageItem.appendChild(imageInfo);
+                imageContainer.appendChild(imageItem);
+            });
+            
+            imagesSection.style.display = 'block';
+        } else {
+            imagesSection.style.display = 'none';
+        }
+    }
+    
+    function displayAttachments(attachments) {
+        const attachmentsSection = document.getElementById('mailAttachments');
+        const attachmentList = document.getElementById('attachmentList');
+        
+        if (attachments && attachments.length > 0) {
+            attachmentList.innerHTML = '';
+            
+            attachments.forEach((attachment) => {
+                const attachmentItem = document.createElement('div');
+                attachmentItem.className = 'attachment-item';
+                
+                const icon = getFileIcon(attachment.mime_type);
+                
+                attachmentItem.innerHTML = `
+                    <div class="attachment-icon">${icon}</div>
+                    <div class="attachment-info">
+                        <div class="attachment-name">${escapeHtml(attachment.filename)}</div>
+                        <div class="attachment-meta">${formatFileSize(attachment.size)} • ${attachment.mime_type}</div>
+                    </div>
+                    <button class="attachment-download" onclick="downloadAttachment('${attachment.content}', '${escapeHtml(attachment.filename)}', '${attachment.mime_type}')">
+                        下载
+                    </button>
+                `;
+                
+                attachmentList.appendChild(attachmentItem);
+            });
+            
+            attachmentsSection.style.display = 'block';
+        } else {
+            attachmentsSection.style.display = 'none';
+        }
+    }
+    
+    function getFileIcon(mimeType) {
+        if (mimeType.startsWith('image/')) return '🖼️';
+        if (mimeType.startsWith('video/')) return '🎥';
+        if (mimeType.startsWith('audio/')) return '🎵';
+        if (mimeType.includes('pdf')) return '📄';
+        if (mimeType.includes('word') || mimeType.includes('doc')) return '📝';
+        if (mimeType.includes('excel') || mimeType.includes('sheet')) return '📊';
+        if (mimeType.includes('zip') || mimeType.includes('rar')) return '📦';
+        return '📎';
+    }
+    
+    function openImageModal(src) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        modal.classList.add('show');
+        modalImg.src = src;
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeImageModal() {
+        const modal = document.getElementById('imageModal');
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+    
+    const imageModal = document.getElementById('imageModal');
+    if (imageModal) {
+        imageModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeImageModal();
+            }
+        });
+    }
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const mailDisplay = document.getElementById('mailDisplay');
+            if (mailDisplay && mailDisplay.classList.contains('is-visible')) {
+                closeMailModal(false);
+            }
+        }
+    });
+    
+    function downloadAttachment(base64Content, filename, mimeType) {
+        try {
+            const byteCharacters = atob(base64Content);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mimeType });
+            
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showToast('附件下载已开始', 'success');
+        } catch (error) {
+            console.error('Download error:', error);
+            showToast('附件下载失败', 'error');
+        }
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    function showToast(message, type = 'info', duration = 3000) {
+        const container = document.getElementById('toast-container');
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        if (message.includes('\n')) {
+            const lines = message.split('\n');
+            const content = document.createElement('div');
+            lines.forEach((line, index) => {
+                const lineDiv = document.createElement('div');
+                lineDiv.textContent = line;
+                if (index === 0) {
+                    lineDiv.style.fontWeight = 'bold';
+                    lineDiv.style.marginBottom = '8px';
+                } else if (line.trim().startsWith('•')) {
+                    lineDiv.style.marginLeft = '10px';
+                    lineDiv.style.fontSize = '13px';
+                    lineDiv.style.opacity = '0.9';
+                }
+                content.appendChild(lineDiv);
+            });
+            toast.appendChild(content);
+        } else {
+            toast.textContent = message;
+        }
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (container.contains(toast)) {
+                    container.removeChild(toast);
+                }
+            }, 300);
+        }, duration);
+    }
+    
+    function showMessage(text, type) {
+        showToast(text, type);
+    }
+    
+    function isValidEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    renderMailList();
+</script>
+{% endblock %}

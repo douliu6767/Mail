@@ -1,0 +1,2120 @@
+{% extends "base.html" %}
+
+{% block title %}代理池管理 - {{ system_title }}{% endblock %}
+
+{% block head %}
+<!-- 与 mailbox.html 相同的基础样式，进行适配 -->
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    :root {
+        --primary-color: #667eea;
+        --secondary-color: #764ba2;
+        --sidebar-width: 200px;
+        --sidebar-collapsed-width: 72px;
+        --header-height: 70px;
+        --transition: all 0.3s ease;
+    }
+    
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #f8fafc;
+        line-height: 1.6;
+        color: #334155;
+        transition: var(--transition);
+    }
+    
+    /* Sidebar Styles */
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: var(--sidebar-width);
+        height: 100vh;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        z-index: 1000;
+        transition: var(--transition);
+        box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar-header {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .sidebar-logo {
+        color: white;
+        font-size: 20px;
+        font-weight: 700;
+        text-align: center;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .sidebar-nav {
+        padding: 20px 0;
+    }
+    
+    .nav-item {
+        display: block;
+        color: rgba(255,255,255,0.8);
+        text-decoration: none;
+        padding: 15px 25px;
+        transition: var(--transition);
+        border-left: 3px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .nav-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.1);
+        transform: translateX(-100%);
+        transition: var(--transition);
+    }
+    
+    .nav-item:hover::before {
+        transform: translateX(0);
+    }
+    
+    .nav-item:hover,
+    .nav-item.active {
+        color: white;
+        background: rgba(255,255,255,0.15);
+        border-left-color: white;
+        transform: translateX(5px);
+    }
+    
+    .nav-item i {
+        margin-right: 10px;
+        width: 20px;
+        text-align: center;
+    }
+    
+    .sidebar-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        cursor: pointer;
+        color: #4b5563;
+        transition: var(--transition);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .sidebar-toggle:hover {
+        color: var(--primary-color);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+    }
+
+    body.sidebar-collapsed .sidebar {
+        width: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-collapsed .main-content {
+        margin-left: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-collapsed .sidebar-logo {
+        font-size: 0;
+        padding: 14px 0;
+    }
+
+    body.sidebar-collapsed .sidebar-logo::after {
+        content: '📧';
+        font-size: 20px;
+        display: block;
+        text-align: center;
+    }
+
+    body.sidebar-collapsed .nav-item {
+        padding: 12px 0;
+        text-align: center;
+        font-size: 0;
+        border-left-color: transparent;
+    }
+
+    body.sidebar-collapsed .nav-item:hover,
+    body.sidebar-collapsed .nav-item.active {
+        transform: none;
+    }
+
+    body.sidebar-collapsed .nav-item i {
+        margin-right: 0;
+        font-size: 18px;
+    }
+
+    body.sidebar-collapsed .nav-item::before {
+        display: none;
+    }
+    
+    /* Main Content */
+    .main-content {
+        margin-left: var(--sidebar-width);
+        min-height: 100vh;
+        transition: var(--transition);
+    }
+    
+    .header {
+        background: white;
+        height: var(--header-height);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 30px;
+        position: sticky;
+        top: 0;
+        z-index: 999;
+    }
+    
+    .header-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        color: #64748b;
+    }
+    
+    .logout-btn {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        text-decoration: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    
+    .logout-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Content Area */
+    .content {
+        padding: 30px;
+        min-height: calc(100vh - var(--header-height));
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    /* Cards */
+    .card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 25px;
+        transition: var(--transition);
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1), 0 4px 10px rgba(0,0,0,0.06);
+    }
+    
+    .card-header {
+        padding: 20px 25px;
+        border-bottom: 1px solid #f1f5f9;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    .card-body {
+        padding: 25px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-danger {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+    
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(245, 158, 11, 0.3);
+    }
+    
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #374151;
+        font-weight: 500;
+    }
+    
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: var(--transition);
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+    }
+    
+    /* Table Styles */
+    .table-container {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+    }
+
+    .content > .card:last-of-type {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .content > .card:last-of-type .card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    table th,
+    table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    table th {
+        background: #f8fafc;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    table tr:hover {
+        background: #f8fafc;
+    }
+    
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        animation: slideInUp 0.3s ease;
+    }
+    
+    .modal-header {
+        padding: 20px 25px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #6b7280;
+    }
+    
+    .modal-close:hover {
+        color: #374151;
+    }
+    
+    .modal-body {
+        padding: 25px;
+    }
+    
+    .modal-footer {
+        padding: 20px 25px;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
+    }
+    
+    /* Toast Notifications */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 3000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 400px;
+    }
+    
+    .toast {
+        padding: 15px 20px;
+        border-radius: 10px;
+        color: white;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transform: translateX(450px);
+        opacity: 0;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .toast.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .toast.success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    .toast.error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .toast.info {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+    
+    /* 代理管理专用样式 */
+    .proxy-tabs {
+        display: flex;
+        border-bottom: 2px solid #e5e7eb;
+        margin-bottom: 25px;
+    }
+    
+    .proxy-tab {
+        padding: 12px 24px;
+        background: none;
+        border: none;
+        font-size: 16px;
+        font-weight: 500;
+        color: #6b7280;
+        cursor: pointer;
+        position: relative;
+        transition: var(--transition);
+    }
+    
+    .proxy-tab.active {
+        color: var(--primary-color);
+    }
+    
+    .proxy-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--primary-color);
+    }
+    
+    .proxy-tab-content {
+        display: none;
+    }
+    
+    .proxy-tab-content.active {
+        display: block;
+    }
+    
+    .button-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    
+    .search-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        gap: 20px;
+        flex-wrap: nowrap; /* Prevent wrapping unless specifically needed */
+    }
+    
+    .search-box {
+        display: flex;
+        gap: 10px;
+        flex: 1;
+        max-width: 500px; /* Increased from 400px for better input experience */
+        min-width: 0; /* Allow shrinking */
+    }
+    
+    .search-box input {
+        flex: 1;
+        min-width: 200px; /* Increased from 150px for better input experience */
+        padding: 10px 16px; /* Enhanced padding to match mailbox.html */
+        border: 2px solid #e5e7eb;
+        border-radius: 8px; /* Increased radius to match mailbox.html */
+        font-size: 14px; /* Increased font size to match mailbox.html */
+        transition: all 0.3s ease;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Enhanced shadow to match mailbox.html */
+    }
+    
+    .search-box input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1); /* Enhanced focus shadow to match mailbox.html */
+        transform: translateY(-1px); /* Added transform to match mailbox.html */
+    }
+    
+    .search-box input::placeholder {
+        color: #9ca3af;
+        font-style: italic; /* Added italic style to match mailbox.html */
+    }
+    
+    .page-controls select {
+        padding: 10px 12px; /* Increased padding to match search input better */
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Added shadow to match search input */
+        transition: all 0.3s ease; /* Added transition for consistency */
+        min-width: 120px; /* Ensure minimum width to prevent shrinking too much */
+    }
+    
+    .page-controls select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+    }
+    
+    .pagination-container {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding: 10px 0 6px;
+        margin-top: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.03);
+        z-index: 5;
+    }
+    
+    .pagination-info {
+        color: #6b7280;
+        font-size: 14px;
+        margin-right: 20px;
+    }
+
+    .page-size-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .page-size-control select {
+        padding: 8px 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .page-btn {
+        padding: 8px 12px;
+        border: 1px solid #e5e7eb;
+        background: white;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        transition: var(--transition);
+        cursor: pointer;
+    }
+    
+    .page-btn:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+    }
+    
+    .page-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .form-row .form-group {
+        flex: 1;
+        margin-bottom: 0;
+    }
+    
+    .btn-small {
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+    
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .status-badge.online {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-badge.offline {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .status-badge.testing {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    /* Mobile menu toggle - default hidden */
+    .mobile-menu-toggle {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #64748b;
+        transition: var(--transition);
+    }
+    
+    .mobile-menu-toggle:hover {
+        color: var(--primary-color);
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .sidebar {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar.mobile-open {
+            transform: translateX(0);
+        }
+
+        body.sidebar-collapsed .sidebar {
+            width: 260px;
+        }
+
+        body.sidebar-collapsed .nav-item {
+            font-size: inherit;
+            padding: 15px 25px;
+            text-align: left;
+        }
+
+        body.sidebar-collapsed .nav-item i {
+            margin-right: 10px;
+            font-size: inherit;
+        }
+
+        body.sidebar-collapsed .sidebar-logo {
+            font-size: 20px;
+            padding: 20px;
+        }
+
+        body.sidebar-collapsed .sidebar-logo::after {
+            content: '';
+        }
+
+        .sidebar-toggle {
+            display: none;
+        }
+        
+        .main-content {
+            margin-left: 0;
+        }
+        
+        .header-title {
+            font-size: 20px;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .mobile-menu-toggle {
+            display: block !important;
+        }
+        
+        .card-header {
+            flex-direction: column;
+            gap: 15px;
+            align-items: flex-start;
+        }
+        
+        .modal-content {
+            width: 95%;
+            margin: 20px;
+        }
+        
+        .table-container {
+            font-size: 12px;
+        }
+    }
+    
+    /* Mobile overlay */
+    .mobile-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        display: none;
+    }
+    
+    .mobile-overlay.show {
+        display: block;
+    }
+    
+    /* Mobile responsive styles */
+    @media (max-width: 768px) {
+        .button-group {
+            flex-direction: column;
+        }
+        
+        .search-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .search-box {
+            max-width: none;
+        }
+        
+        .form-row {
+            flex-direction: column;
+        }
+        
+        .pagination-container {
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .proxy-tabs {
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<!-- Toast notification container -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- Mobile overlay -->
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">📧 邮件管理系统</div>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="{{ url_for('admin_home') }}" class="nav-item">
+            <i>🏠</i> 首页
+        </a>
+        <a href="{{ url_for('admin_mailbox') }}" class="nav-item">
+            <i>📫</i> 邮箱管理
+        </a>
+        <a href="{{ url_for('admin_daili') }}" class="nav-item active">
+            <i>🌐</i> 代理池
+        </a>
+        <a href="{{ url_for('admin_kami') }}" class="nav-item">
+            <i>🔑</i> 卡密管理
+        </a>
+        <a href="{{ url_for('admin_kamirizhi') }}" class="nav-item">
+            <i>📝</i> 卡密日志
+        </a>
+        <a href="{{ url_for('admin_shoujian') }}" class="nav-item">
+            <i>📧</i> 收件日志
+        </a>
+        <a href="{{ url_for('admin_system') }}" class="nav-item">
+            <i>⚙️</i> 系统设置
+        </a>
+    </nav>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <div class="header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="展开侧边栏">⮞</button>
+            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+            <h1 class="header-title">代理池管理</h1>
+        </div>
+        <div class="header-actions">
+            <div class="user-info">
+                <span>欢迎，{{ admin_username }}</span>
+            </div>
+            <a href="{{ url_for('admin_logout') }}" class="logout-btn">退出登录</a>
+        </div>
+    </div>
+    
+    <div class="content">
+        <!-- 左侧操作按钮 -->
+        <div class="card" style="margin-bottom: 15px;">
+            <div class="card-body" style="padding: 20px;">
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="showAddProxyModal('http')">
+                        ➕ 添加HTTP代理
+                    </button>
+                    <button class="btn btn-primary" onclick="showAddProxyModal('socks5')">
+                        ➕ 添加SOCKS5代理
+                    </button>
+                    <button class="btn btn-success" onclick="enableProxy()" id="enableProxyBtn">
+                        🚀 开启代理
+                    </button>
+                    <button class="btn btn-warning" onclick="disableProxy()" id="disableProxyBtn" style="display: none;">
+                        ⏹️ 关闭代理
+                    </button>
+                    <button class="btn btn-danger" onclick="batchDeleteProxies()" id="batchDeleteBtn" style="display: none;">
+                        🗑️ 批量删除
+                    </button>
+                </div>
+                
+                <!-- 代理状态显示 -->
+                <div id="proxyStatusPanel" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="proxyStatusIcon">🌐</span>
+                        <strong>代理状态：</strong>
+                        <span id="proxyStatusText">未启用</span>
+                    </div>
+                    <div id="proxyStatusDetails" style="margin-top: 8px; color: #6b7280; font-size: 14px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">代理池管理</h2>
+            </div>
+            <div class="card-body scroll-card-body">
+                <!-- 搜索和分页控制 -->
+                <div class="search-controls">
+                    <div class="search-box">
+                        <input type="text" id="proxySearchInput" placeholder="搜索代理名称、地址或备注..." onkeyup="searchProxies()">
+                        <button class="btn btn-primary" onclick="searchProxies()">🔍 搜索</button>
+                        <button class="btn btn-danger" onclick="clearProxySearch()">🗑️ 清除</button>
+                    </div>
+                </div>
+                
+                <!-- 统一代理列表 -->
+                <div class="table-container">
+                    <table id="proxyTable">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="proxySelectAll" onchange="toggleSelectAll()"></th>
+                                <th>序号ID</th>
+                                <th>类型</th>
+                                <th>代理名称</th>
+                                <th>地址:端口</th>
+                                <th>用户名</th>
+                                <th>密码</th>
+                                <th>状态</th>
+                                <th>延迟</th>
+                                <th>最后检测</th>
+                                <th>备注</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 统一代理列表将通过JavaScript加载 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 分页导航 -->
+                <div class="pagination-container" id="proxyPaginationContainer">
+                    <!-- 分页按钮将通过JavaScript生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑代理模态框 -->
+<div id="proxyModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="proxyModalTitle">添加HTTP代理</h3>
+            <button class="modal-close" onclick="closeProxyModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="proxyForm">
+                <input type="hidden" id="proxyId" name="id">
+                <input type="hidden" id="proxyType" name="type">
+                <input type="hidden" id="proxyAction" name="action" value="add">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="proxyName">代理名称</label>
+                        <input type="text" id="proxyName" name="name" 
+                               placeholder="留空将默认为空字符串">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="proxyHost">代理地址 *</label>
+                        <input type="text" id="proxyHost" name="host" required 
+                               placeholder="例: 127.0.0.1">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="proxyPort">端口 *</label>
+                        <input type="number" id="proxyPort" name="port" required 
+                               placeholder="例: 8080">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="proxyUsername">用户名</label>
+                        <input type="text" id="proxyUsername" name="username" 
+                               placeholder="可选：代理用户名">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="proxyPassword">密码</label>
+                        <input type="password" id="proxyPassword" name="password" 
+                               placeholder="可选：代理密码">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="proxyRemarks">备注</label>
+                        <input type="text" id="proxyRemarks" name="remarks" 
+                               placeholder="可选：代理备注">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeProxyModal()">取消</button>
+            <button type="button" class="btn btn-warning" onclick="testProxy()" id="testProxyBtn">测试代理</button>
+            <button type="button" class="btn btn-primary" onclick="saveProxy()">保存</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const SIDEBAR_COLLAPSE_KEY = 'adminSidebarCollapsed';
+
+    function updateSidebarToggleButton() {
+        const btn = document.getElementById('sidebarToggle');
+        if (!btn) return;
+        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+        btn.textContent = isCollapsed ? '⮞' : '⮜';
+        btn.setAttribute('aria-expanded', (!isCollapsed).toString());
+        btn.title = isCollapsed ? '展开菜单' : '收起菜单';
+    }
+
+    function applySidebarState(collapsed) {
+        if (window.innerWidth <= 768) {
+            document.body.classList.remove('sidebar-collapsed');
+            updateSidebarToggleButton();
+            return;
+        }
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        updateSidebarToggleButton();
+    }
+
+    function toggleSidebarCollapse() {
+        const shouldCollapse = !document.body.classList.contains('sidebar-collapsed');
+        localStorage.setItem(SIDEBAR_COLLAPSE_KEY, shouldCollapse ? '1' : '0');
+        applySidebarState(shouldCollapse);
+    }
+
+    function initSidebarCollapse() {
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', toggleSidebarCollapse);
+        }
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+        const shouldCollapse = saved === null ? true : saved === '1';
+        applySidebarState(shouldCollapse);
+    }
+
+    function handleSidebarResize() {
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+        const shouldCollapse = saved === null ? true : saved === '1';
+        applySidebarState(shouldCollapse);
+        if (window.innerWidth > 768) {
+            closeMobileMenu();
+        }
+    }
+
+    // Mobile menu functionality
+    function toggleMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        if (sidebar.classList.contains('mobile-open')) {
+            closeMobileMenu();
+        } else {
+            openMobileMenu();
+        }
+    }
+    
+    function openMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.add('mobile-open');
+        overlay.classList.add('show');
+    }
+    
+    function closeMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('show');
+    }
+    
+    // Close mobile menu when clicking on navigation items
+    document.addEventListener('DOMContentLoaded', function() {
+        initSidebarCollapse();
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', function() {
+                closeMobileMenu();
+            });
+        });
+        window.addEventListener('resize', handleSidebarResize);
+    });
+
+    // 全局变量
+    let currentPage = 1;
+    let perPage = 100;
+    let searchQuery = '';
+    let totalPages = 1;
+    let selectedProxies = new Set();
+    let allProxies = [];
+    // 当前代理类型和各类型独立分页/搜索状态
+    let currentProxyType = 'http';
+    const proxyStates = {
+        http: { page: 1, search: '', perPage: 100 },
+        socks5: { page: 1, search: '', perPage: 100 }
+    };
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAllProxies();
+        loadProxyConfig();
+    });
+    
+    // ========== 代理配置管理功能 ==========
+    
+    // 加载代理配置状态
+    async function loadProxyConfig() {
+        try {
+            const response = await fetch('/admin/api/proxy-config', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                updateProxyStatusUI(data.config, data.active_proxy);
+            } else {
+                console.error('加载代理配置失败:', data.message);
+            }
+        } catch (error) {
+            console.error('加载代理配置失败:', error);
+        }
+    }
+    
+    // 更新代理状态UI
+    function updateProxyStatusUI(config, activeProxy) {
+        const statusPanel = document.getElementById('proxyStatusPanel');
+        const statusIcon = document.getElementById('proxyStatusIcon');
+        const statusText = document.getElementById('proxyStatusText');
+        const statusDetails = document.getElementById('proxyStatusDetails');
+        const enableBtn = document.getElementById('enableProxyBtn');
+        const disableBtn = document.getElementById('disableProxyBtn');
+        
+        const proxyEnabled = config.proxy_enabled === '1';
+        
+        if (proxyEnabled && activeProxy) {
+            // 代理已启用
+            statusPanel.style.display = 'block';
+            statusPanel.style.background = '#d4edda';
+            statusIcon.textContent = '🟢';
+            statusText.textContent = '已启用';
+            statusText.style.color = '#155724';
+            statusDetails.innerHTML = `
+                当前代理: <strong>${activeProxy.proxy_type.toUpperCase()}--${activeProxy.name || ''}--地址: ${activeProxy.host}:${activeProxy.port}</strong>
+            `;
+            statusDetails.style.color = '#155724';
+            
+            enableBtn.style.display = 'none';
+            disableBtn.style.display = 'inline-block';
+        } else if (proxyEnabled) {
+            // 代理已启用但无有效代理
+            statusPanel.style.display = 'block';
+            statusPanel.style.background = '#fff3cd';
+            statusIcon.textContent = '⚠️';
+            statusText.textContent = '配置异常';
+            statusText.style.color = '#856404';
+            statusDetails.textContent = '代理已启用但未找到有效的代理配置';
+            statusDetails.style.color = '#856404';
+            
+            enableBtn.style.display = 'inline-block';
+            disableBtn.style.display = 'inline-block';
+        } else {
+            // 代理未启用
+            statusPanel.style.display = 'block';
+            statusPanel.style.background = '#f8f9fa';
+            statusIcon.textContent = '⚪';
+            statusText.textContent = '未启用';
+            statusText.style.color = '#6b7280';
+            statusDetails.textContent = '点击"开启代理"按钮智能选择延迟最低的代理，或手动切换到指定代理';
+            statusDetails.style.color = '#6b7280';
+            
+            enableBtn.style.display = 'inline-block';
+            disableBtn.style.display = 'none';
+        }
+    }
+    
+    // 开启代理
+    async function enableProxy() {
+        try {
+            showToast('正在开启代理...', 'info', 1000);
+            
+            const response = await fetch('/admin/api/proxy-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: 'enable_proxy' })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast(data.message, 'success');
+                loadProxyConfig();
+                loadAllProxies();
+            } else {
+                showToast(data.message || '开启代理失败', 'error');
+            }
+        } catch (error) {
+            console.error('开启代理失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 关闭代理
+    async function disableProxy() {
+        if (!confirm('确定要关闭代理功能吗？')) {
+            return;
+        }
+        
+        try {
+            showToast('正在关闭代理...', 'info', 1000);
+            
+            const response = await fetch('/admin/api/proxy-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: 'disable_proxy' })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast(data.message, 'success');
+                loadProxyConfig();
+                loadAllProxies();
+            } else {
+                showToast(data.message || '关闭代理失败', 'error');
+            }
+        } catch (error) {
+            console.error('关闭代理失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 切换代理
+    async function switchProxy(type, id, name) {
+        if (!confirm(`确定要切换到代理 "${name}" 吗？`)) {
+            return;
+        }
+        
+        try {
+            showToast('正在切换代理...', 'info', 1000);
+            
+            const response = await fetch('/admin/api/proxy-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    action: 'switch_proxy',
+                    proxy_type: type,
+                    proxy_id: id
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast(data.message, 'success');
+                loadProxyConfig();
+                loadAllProxies();
+            } else {
+                showToast(data.message || '切换代理失败', 'error');
+            }
+        } catch (error) {
+            console.error('切换代理失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // ========== 统一代理管理功能 ==========
+    
+    // 加载所有代理列表（HTTP + SOCKS5）
+    async function loadAllProxies(page = null, search = null) {
+        try {
+            if (page !== null) currentPage = page;
+            if (search !== null) searchQuery = search;
+            
+            // 并行加载HTTP和SOCKS5代理 - 减少每页数量以提升加载速度
+            const [httpResponse, socks5Response] = await Promise.all([
+                fetch(`/admin/api/proxies/http?page=1&per_page=100&search=${searchQuery}`),
+                fetch(`/admin/api/proxies/socks5?page=1&per_page=100&search=${searchQuery}`)
+            ]);
+            
+            const httpData = await httpResponse.json();
+            const socks5Data = await socks5Response.json();
+            
+            if (httpData.success && socks5Data.success) {
+                // 合并代理数据，添加类型标识
+                allProxies = [
+                    ...httpData.data.map(proxy => ({ ...proxy, proxy_type: 'HTTP' })),
+                    ...socks5Data.data.map(proxy => ({ ...proxy, proxy_type: 'SOCKS5' }))
+                ];
+                
+                // 按unified_id排序，确保显示顺序为1-2-3-4而不是1-3-2-4
+                allProxies.sort((a, b) => {
+                    // 首先按unified_id排序，如果unified_id为0则使用数据库ID
+                    const aId = a.unified_id && a.unified_id > 0 ? a.unified_id : a.id;
+                    const bId = b.unified_id && b.unified_id > 0 ? b.unified_id : b.id;
+                    return aId - bId;
+                });
+                
+                renderUnifiedProxyTable();
+                renderUnifiedPagination();
+            } else {
+                showToast('加载代理列表失败', 'error');
+            }
+        } catch (error) {
+            console.error('加载代理列表失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 渲染统一代理表格
+    function renderUnifiedProxyTable() {
+        const tbody = document.querySelector('#proxyTable tbody');
+        tbody.innerHTML = '';
+        
+        // 分页处理
+        const startIndex = (currentPage - 1) * perPage;
+        const endIndex = startIndex + perPage;
+        const paginatedProxies = allProxies.slice(startIndex, endIndex);
+        
+        if (paginatedProxies.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #6b7280;">暂无代理配置</td></tr>';
+            return;
+        }
+        
+        paginatedProxies.forEach((proxy, index) => {
+            const row = document.createElement('tr');
+            const statusBadge = getStatusBadge(proxy.status, proxy.response_time);
+            const proxyType = proxy.proxy_type.toLowerCase();
+            
+            // 使用统一ID（如果存在），否则显示数据库ID
+            const unifiedId = proxy.unified_id && proxy.unified_id > 0 ? proxy.unified_id : proxy.id;
+            
+            row.innerHTML = `
+                <td><input type="checkbox" class="proxy-checkbox" value="${proxyType}-${proxy.id}" onchange="toggleProxySelection('${proxyType}', ${proxy.id})"></td>
+                <td><strong>${unifiedId}</strong></td>
+                <td><span style="background: ${proxyType === 'http' ? '#dbeafe' : '#fef3c7'}; color: ${proxyType === 'http' ? '#1e40af' : '#92400e'}; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 500;">${proxy.proxy_type}</span></td>
+                <td>${escapeHtml(proxy.name) || ''}</td>
+                <td>${escapeHtml(proxy.host)}:${proxy.port}</td>
+                <td>${escapeHtml(proxy.username || '-')}</td>
+                <td>${proxy.password ? '******' : '-'}</td>
+                <td>${statusBadge}</td>
+                <td>${proxy.response_time ? proxy.response_time + 'ms' : '-'}</td>
+                <td>${formatDateTime(proxy.last_check)}</td>
+                <td>${escapeHtml(proxy.remarks || '-')}</td>
+                <td>
+                    <div class="actions" style="display: flex; gap: 5px; flex-wrap: wrap;">
+                        <button class="btn btn-primary btn-small" onclick="switchProxy('${proxyType}', ${proxy.id}, '${escapeHtml(proxy.name) || ''}')" title="切换到此代理">切换</button>
+                        <button class="btn btn-success btn-small" onclick="editProxy('${proxyType}', ${proxy.id})">编辑</button>
+                        <button class="btn btn-warning btn-small" onclick="testSingleProxy('${proxyType}', ${proxy.id})">测试</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteProxy('${proxyType}', ${proxy.id})">删除</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+        updateBatchDeleteButton();
+    }
+    
+    // 渲染统一分页
+    function renderUnifiedPagination() {
+        const container = document.getElementById('proxyPaginationContainer');
+        const total = allProxies.length;
+        totalPages = Math.ceil(total / perPage);
+        
+        let html = `<div class="pagination-info">共 ${total} 条记录，第 ${currentPage} 页，共 ${totalPages} 页</div>`;
+        html += `<div class="page-size-control">
+            <label for="proxyPerPageSelect">每页</label>
+            <select id="proxyPerPageSelect" onchange="changePerPage()">
+                <option value="100" ${perPage === 100 ? 'selected' : ''}>100条</option>
+                <option value="150" ${perPage === 150 ? 'selected' : ''}>150条</option>
+                <option value="200" ${perPage === 200 ? 'selected' : ''}>200条</option>
+                <option value="300" ${perPage === 300 ? 'selected' : ''}>300条</option>
+            </select>
+        </div>`;
+        
+        if (totalPages > 1) {
+            html += '<div class="pagination-buttons">';
+            
+            // 上一页
+            if (currentPage > 1) {
+                html += `<button class="page-btn" onclick="loadAllProxies(${currentPage - 1})">« 上一页</button>`;
+            }
+            
+            // 页码按钮
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+            
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="loadAllProxies(1)">1</button>`;
+                if (startPage > 2) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === currentPage ? 'active' : '';
+                html += `<button class="page-btn ${activeClass}" onclick="loadAllProxies(${i})">${i}</button>`;
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+                html += `<button class="page-btn" onclick="loadAllProxies(${totalPages})">${totalPages}</button>`;
+            }
+            
+            // 下一页
+            if (currentPage < totalPages) {
+                html += `<button class="page-btn" onclick="loadAllProxies(${currentPage + 1})">下一页 »</button>`;
+            }
+            
+            html += '</div>';
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    // 加载代理列表
+    async function loadProxies(type, page = null, search = null) {
+        try {
+            if (page !== null) proxyStates[type].page = page;
+            if (search !== null) proxyStates[type].search = search;
+            currentProxyType = type;
+            
+            const params = new URLSearchParams({
+                page: proxyStates[type].page,
+                per_page: proxyStates[type].perPage,
+                search: proxyStates[type].search
+            });
+            
+            const response = await fetch(`/admin/api/proxies/${type}?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                renderProxyTable(type, data.data);
+                renderProxyPagination(type, data.pagination);
+            } else {
+                showToast(`加载${type.toUpperCase()}代理列表失败`, 'error');
+            }
+        } catch (error) {
+            console.error(`加载${type}代理列表失败:`, error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 渲染代理表格
+    function renderProxyTable(type, proxies) {
+        const tbody = document.querySelector(`#${type}ProxyTable tbody`);
+        tbody.innerHTML = '';
+        
+        if (proxies.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #6b7280;">暂无代理配置</td></tr>';
+            return;
+        }
+        
+        proxies.forEach(proxy => {
+            const row = document.createElement('tr');
+            const statusBadge = getStatusBadge(proxy.status, proxy.response_time);
+            
+            row.innerHTML = `
+                <td><input type="checkbox" class="${type}-proxy-checkbox" value="${proxy.id}" onchange="toggleProxySelection('${type}', ${proxy.id})"></td>
+                <td>${proxy.id}</td>
+                <td>${type.toUpperCase()}</td>
+                <td>${escapeHtml(proxy.name)}</td>
+                <td>${escapeHtml(proxy.host)}:${proxy.port}</td>
+                <td>${escapeHtml(proxy.username || '-')}</td>
+                <td>${proxy.password ? '******' : '-'}</td>
+                <td>${statusBadge}</td>
+                <td>${proxy.response_time ? proxy.response_time + 'ms' : '-'}</td>
+                <td>${formatDateTime(proxy.last_check)}</td>
+                <td>${escapeHtml(proxy.remarks || '-')}</td>
+                <td>
+                    <div class="actions" style="display: flex; gap: 5px; flex-wrap: wrap;">
+                        <button class="btn btn-success btn-small" onclick="editProxy('${type}', ${proxy.id})">编辑</button>
+                        <button class="btn btn-warning btn-small" onclick="testSingleProxy('${type}', ${proxy.id})">测试</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteProxy('${type}', ${proxy.id})">删除</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+        updateBatchDeleteButton();
+    }
+    
+    // 获取状态徽章
+    function getStatusBadge(status, responseTime) {
+        if (status === 1) {
+            const timeColor = responseTime < 500 ? 'online' : 'testing';
+            return `<span class="status-badge ${timeColor}">在线</span>`;
+        } else {
+            return '<span class="status-badge offline">离线</span>';
+        }
+    }
+    
+    // 渲染代理分页
+    function renderProxyPagination(type, pagination) {
+        const container = document.getElementById(`${type}PaginationContainer`);
+        totalPages[type] = pagination.pages;
+        
+        let html = `<div class="pagination-info">共 ${pagination.total} 条记录，第 ${pagination.page} 页，共 ${pagination.pages} 页</div>`;
+        html += `<div class="page-size-control">
+            <label for="proxyPerPageSelect">每页</label>
+            <select id="proxyPerPageSelect" onchange="changePerPage()">
+                <option value="100" ${proxyStates[type].perPage === 100 ? 'selected' : ''}>100条</option>
+                <option value="150" ${proxyStates[type].perPage === 150 ? 'selected' : ''}>150条</option>
+                <option value="200" ${proxyStates[type].perPage === 200 ? 'selected' : ''}>200条</option>
+                <option value="300" ${proxyStates[type].perPage === 300 ? 'selected' : ''}>300条</option>
+            </select>
+        </div>`;
+        
+        if (pagination.pages > 1) {
+            html += '<div class="pagination-buttons">';
+            
+            // 上一页
+            if (pagination.page > 1) {
+                html += `<button class="page-btn" onclick="loadProxies('${type}', ${pagination.page - 1})">« 上一页</button>`;
+            }
+            
+            // 页码按钮
+            let startPage = Math.max(1, pagination.page - 2);
+            let endPage = Math.min(pagination.pages, pagination.page + 2);
+            
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="loadProxies('${type}', 1)">1</button>`;
+                if (startPage > 2) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === pagination.page ? 'active' : '';
+                html += `<button class="page-btn ${activeClass}" onclick="loadProxies('${type}', ${i})">${i}</button>`;
+            }
+            
+            if (endPage < pagination.pages) {
+                if (endPage < pagination.pages - 1) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+                html += `<button class="page-btn" onclick="loadProxies('${type}', ${pagination.pages})">${pagination.pages}</button>`;
+            }
+            
+            // 下一页
+            if (pagination.page < pagination.pages) {
+                html += `<button class="page-btn" onclick="loadProxies('${type}', ${pagination.page + 1})">下一页 »</button>`;
+            }
+            
+            html += '</div>';
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    // 清除代理搜索
+    function clearProxySearch() {
+        document.getElementById('proxySearchInput').value = '';
+        loadAllProxies(1, '');
+    }
+    
+    // 搜索代理
+    function searchProxies() {
+        const search = document.getElementById('proxySearchInput').value.trim();
+        loadAllProxies(1, search);
+    }
+    
+    // 改变每页显示数量
+    function changePerPage() {
+        const select = document.getElementById('proxyPerPageSelect');
+        if (!select) return;
+        perPage = parseInt(select.value, 10);
+        proxyStates.http.perPage = perPage;
+        proxyStates.socks5.perPage = perPage;
+        loadAllProxies(1, searchQuery);
+    }
+    
+    // 显示添加代理模态框
+    function showAddProxyModal(type) {
+        document.getElementById('proxyModalTitle').textContent = `添加${type.toUpperCase()}代理`;
+        document.getElementById('proxyAction').value = 'add';
+        document.getElementById('proxyType').value = type;
+        document.getElementById('proxyForm').reset();
+        document.getElementById('proxyId').value = '';
+        document.getElementById('proxyModal').classList.add('show');
+    }
+    
+    // 编辑代理
+    async function editProxy(type, id) {
+        try {
+            const response = await fetch(`/admin/api/proxies/${type}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const proxy = data.data.find(p => p.id === id);
+                if (proxy) {
+                    document.getElementById('proxyModalTitle').textContent = `编辑${type.toUpperCase()}代理`;
+                    document.getElementById('proxyAction').value = 'edit';
+                    document.getElementById('proxyType').value = type;
+                    document.getElementById('proxyId').value = proxy.id;
+                    document.getElementById('proxyName').value = proxy.name;
+                    document.getElementById('proxyHost').value = proxy.host;
+                    document.getElementById('proxyPort').value = proxy.port;
+                    document.getElementById('proxyUsername').value = proxy.username || '';
+                    document.getElementById('proxyPassword').value = proxy.password || '';
+                    document.getElementById('proxyRemarks').value = proxy.remarks || '';
+                    document.getElementById('proxyModal').classList.add('show');
+                }
+            }
+        } catch (error) {
+            console.error('获取代理信息失败:', error);
+            showToast('获取代理信息失败', 'error');
+        }
+    }
+    
+    // 测试单个代理
+    async function testSingleProxy(type, id) {
+        try {
+            showToast('代理测试中，请稍候...', 'info', 1000);
+            
+            const response = await fetch(`/admin/api/proxies/${type}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    action: 'test',
+                    id: parseInt(id)
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const details = data.details;
+                let message = data.message;
+                
+                if (details && details.results) {
+                    const results = details.results;
+                    const successCount = results.filter(r => r.success).length;
+                    message += `\n测试结果：${successCount}/${results.length} 成功`;
+                    
+                    results.forEach(result => {
+                        if (result.success) {
+                            message += `\n✅ ${result.url}: ${result.response_time}ms`;
+                        } else {
+                            message += `\n❌ ${result.url}: 测试失败`;
+                        }
+                    });
+                }
+                
+                showToast(message, 'success', 5000);
+                loadAllProxies(currentPage, searchQuery);
+            } else {
+                showToast(data.message || '代理测试失败', 'error');
+            }
+        } catch (error) {
+            console.error('测试代理失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 测试代理（在模态框中）
+    async function testProxy() {
+        const proxyId = document.getElementById('proxyId').value;
+        const proxyType = document.getElementById('proxyType').value;
+        
+        if (proxyId) {
+            // 如果有ID，测试已保存的代理
+            await testSingleProxy(proxyType, proxyId);
+        } else {
+            // 如果没有ID，测试表单中的数据（无需保存）
+            await testNewProxy();
+        }
+    }
+    
+    // 测试新代理（无需保存）
+    async function testNewProxy() {
+        const form = document.getElementById('proxyForm');
+        const formData = new FormData(form);
+        const proxyType = formData.get('type');
+        
+        const data = {
+            action: 'test_new',
+            host: formData.get('host'),
+            port: parseInt(formData.get('port')),
+            username: formData.get('username'),
+            password: formData.get('password'),
+            name: formData.get('name')
+        };
+        
+        // 基础验证
+        if (!data.host || !data.port) {
+            showToast('请填写代理地址和端口', 'error');
+            return;
+        }
+        
+        try {
+            showToast('代理测试中，请稍候...', 'info', 1000);
+            
+            const response = await fetch(`/admin/api/proxies/${proxyType}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                const details = result.details;
+                let message = result.message;
+                
+                if (details && details.results) {
+                    const results = details.results;
+                    const successCount = results.filter(r => r.success).length;
+                    message += `\n测试结果：${successCount}/${results.length} 成功`;
+                    
+                    results.forEach(result => {
+                        if (result.success) {
+                            message += `\n✅ ${result.url}: ${result.response_time}ms`;
+                        } else {
+                            message += `\n❌ ${result.url}: 测试失败`;
+                        }
+                    });
+                }
+                
+                showToast(message, 'success', 5000);
+            } else {
+                showToast(result.message || '代理测试失败', 'error');
+            }
+        } catch (error) {
+            console.error('测试代理失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 删除代理
+    async function deleteProxy(type, id) {
+        if (!confirm('确定要删除这个代理配置吗？')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/admin/api/proxies/${type}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: id })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast('代理删除成功', 'success');
+                loadAllProxies(currentPage, searchQuery);
+            } else {
+                showToast(data.message || '删除失败', 'error');
+            }
+        } catch (error) {
+            console.error('删除代理失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 保存代理
+    async function saveProxy() {
+        const form = document.getElementById('proxyForm');
+        const formData = new FormData(form);
+        const type = formData.get('type');
+        
+        const data = {
+            action: formData.get('action'),
+            name: formData.get('name'),
+            host: formData.get('host'),
+            port: parseInt(formData.get('port')),
+            username: formData.get('username'),
+            password: formData.get('password'),
+            remarks: formData.get('remarks')
+        };
+        
+        if (data.action === 'edit') {
+            data.id = parseInt(formData.get('id'));
+        }
+        
+        try {
+            const response = await fetch(`/admin/api/proxies/${type}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast(result.message || '保存成功', 'success');
+                closeProxyModal();
+                loadAllProxies(currentPage, searchQuery);
+            } else {
+                showToast(result.message || '保存失败', 'error');
+            }
+        } catch (error) {
+            console.error('保存代理失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // ========== 选择管理功能 ==========
+    
+    // 全选/取消全选
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('proxySelectAll');
+        const checkboxes = document.querySelectorAll('.proxy-checkbox');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+            const [type, id] = checkbox.value.split('-');
+            if (selectAll.checked) {
+                selectedProxies.add(checkbox.value);
+            } else {
+                selectedProxies.delete(checkbox.value);
+            }
+        });
+        
+        updateBatchDeleteButton();
+    }
+    
+    // 切换代理选择状态
+    function toggleProxySelection(type, id) {
+        const key = `${type}-${id}`;
+        if (selectedProxies.has(key)) {
+            selectedProxies.delete(key);
+        } else {
+            selectedProxies.add(key);
+        }
+        updateBatchDeleteButton();
+    }
+    
+    // 更新批量删除按钮状态
+    function updateBatchDeleteButton() {
+        const btn = document.getElementById('batchDeleteBtn');
+        const selectedCount = selectedProxies.size;
+        
+        if (selectedCount > 0) {
+            btn.style.display = 'inline-block';
+            btn.textContent = `🗑️ 批量删除 (${selectedCount})`;
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+    
+    // 批量删除代理
+    async function batchDeleteProxies() {
+        if (selectedProxies.size === 0) {
+            showToast('请选择要删除的代理', 'error');
+            return;
+        }
+        
+        if (!confirm(`确定要删除选中的 ${selectedProxies.size} 个代理吗？`)) {
+            return;
+        }
+        
+        try {
+            // 按类型分组选中的代理
+            const httpIds = [];
+            const socks5Ids = [];
+            
+            selectedProxies.forEach(key => {
+                const [type, id] = key.split('-');
+                if (type === 'http') {
+                    httpIds.push(parseInt(id));
+                } else if (type === 'socks5') {
+                    socks5Ids.push(parseInt(id));
+                }
+            });
+            
+            // 并行删除
+            const promises = [];
+            if (httpIds.length > 0) {
+                promises.push(
+                    fetch('/admin/api/proxies/http', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'batch_delete', ids: httpIds })
+                    })
+                );
+            }
+            if (socks5Ids.length > 0) {
+                promises.push(
+                    fetch('/admin/api/proxies/socks5', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'batch_delete', ids: socks5Ids })
+                    })
+                );
+            }
+            
+            const responses = await Promise.all(promises);
+            const results = await Promise.all(responses.map(r => r.json()));
+            
+            const allSuccess = results.every(r => r.success);
+            
+            if (allSuccess) {
+                showToast(`批量删除成功`, 'success');
+                selectedProxies.clear();
+                loadAllProxies(currentPage, searchQuery);
+            } else {
+                showToast('部分删除失败', 'error');
+                loadAllProxies(currentPage, searchQuery);
+            }
+        } catch (error) {
+            console.error('批量删除失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // ========== 模态框管理 ==========
+    
+    // 关闭代理模态框
+    function closeProxyModal() {
+        document.getElementById('proxyModal').classList.remove('show');
+    }
+    
+    // 点击模态框外部关闭
+    document.getElementById('proxyModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeProxyModal();
+        }
+    });
+    
+    // 键盘事件
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeProxyModal();
+        }
+        
+        if (e.key === 'Enter') {
+            const activeInput = document.activeElement;
+            if (activeInput && activeInput.id === 'proxySearchInput') {
+                searchProxies();
+            }
+        }
+    });
+    
+    // ========== 工具函数 ==========
+    
+    // Toast通知系统
+    function showToast(message, type = 'info', duration = 3000) {
+        const container = document.getElementById('toast-container');
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        // 处理多行消息
+        if (message.includes('\n')) {
+            const lines = message.split('\n');
+            toast.innerHTML = lines.map(line => `<div>${escapeHtml(line)}</div>`).join('');
+        } else {
+            toast.textContent = message;
+        }
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (container.contains(toast)) {
+                    container.removeChild(toast);
+                }
+            }, 300);
+        }, duration);
+    }
+    
+    // 工具函数
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function formatDateTime(dateString) {
+        if (!dateString) return '-';
+        return new Date(dateString).toLocaleString('zh-CN');
+    }
+    
+    // 性能优化：防抖函数
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // 性能优化：节流函数  
+    function throttle(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+    
+    // 性能优化：批量DOM操作
+    function batchDOMUpdate(callback) {
+        requestAnimationFrame(() => {
+            callback();
+        });
+    }
+    
+    // 性能优化：缓存DOM元素
+    const cachedElements = new Map();
+    function getCachedElement(id) {
+        if (!cachedElements.has(id)) {
+            cachedElements.set(id, document.getElementById(id));
+        }
+        return cachedElements.get(id);
+    }
+    
+    // 性能优化：优化搜索功能
+    const optimizedSearch = debounce(function(query) {
+        searchQuery = query;
+        currentPage = 1;
+        loadProxies(currentProxyType);
+    }, 300);
+    
+    // 绑定搜索优化
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                optimizedSearch(e.target.value);
+            });
+        }
+    });
+    
+</script>
+{% endblock %}

@@ -1,0 +1,4232 @@
+{% extends "base.html" %}
+
+{% block title %}邮箱管理 - {{ system_title }}{% endblock %}
+
+{% block head %}
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    :root {
+        --primary-color: #667eea;
+        --secondary-color: #764ba2;
+        --sidebar-width: 200px;
+        --sidebar-collapsed-width: 72px;
+        --header-height: 70px;
+        --transition: all 0.3s ease;
+        --receive-sidebar-width: 140px; /* narrower nav to keep modal list area wider */
+    }
+    
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #f8fafc;
+        line-height: 1.6;
+        color: #334155;
+        transition: var(--transition);
+    }
+    
+    /* Sidebar Styles */
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: var(--sidebar-width);
+        height: 100vh;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        z-index: 1000;
+        transition: var(--transition);
+        box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar-header {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .sidebar-logo {
+        color: white;
+        font-size: 20px;
+        font-weight: 700;
+        text-align: center;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .sidebar-nav {
+        padding: 20px 0;
+    }
+    
+    .nav-item {
+        display: block;
+        color: rgba(255,255,255,0.8);
+        text-decoration: none;
+        padding: 15px 25px;
+        transition: var(--transition);
+        border-left: 3px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .nav-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.1);
+        transform: translateX(-100%);
+        transition: var(--transition);
+    }
+    
+    .nav-item:hover::before {
+        transform: translateX(0);
+    }
+    
+    .nav-item:hover,
+    .nav-item.active {
+        color: white;
+        background: rgba(255,255,255,0.15);
+        border-left-color: white;
+        transform: translateX(5px);
+    }
+    
+    .nav-item i {
+        margin-right: 10px;
+        width: 20px;
+        text-align: center;
+    }
+
+    .sidebar-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        cursor: pointer;
+        color: #4b5563;
+        transition: var(--transition);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .sidebar-toggle:hover {
+        color: var(--primary-color);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+    }
+
+    body.sidebar-collapsed .sidebar {
+        width: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-collapsed .main-content {
+        margin-left: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-collapsed .sidebar-logo {
+        font-size: 0;
+        padding: 14px 0;
+    }
+
+    body.sidebar-collapsed .sidebar-logo::after {
+        content: '📧';
+        font-size: 20px;
+        display: block;
+        text-align: center;
+    }
+
+    body.sidebar-collapsed .nav-item {
+        padding: 12px 0;
+        text-align: center;
+        font-size: 0;
+        border-left-color: transparent;
+    }
+
+    body.sidebar-collapsed .nav-item:hover,
+    body.sidebar-collapsed .nav-item.active {
+        transform: none;
+    }
+
+    body.sidebar-collapsed .nav-item i {
+        margin-right: 0;
+        font-size: 18px;
+    }
+
+    body.sidebar-collapsed .nav-item::before {
+        display: none;
+    }
+    
+    /* Main Content */
+    .main-content {
+        margin-left: var(--sidebar-width);
+        min-height: 100vh;
+        transition: var(--transition);
+    }
+    
+    .header {
+        background: white;
+        height: var(--header-height);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 30px;
+        position: sticky;
+        top: 0;
+        z-index: 999;
+    }
+    
+    .header-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        color: #64748b;
+    }
+    
+    .logout-btn {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        text-decoration: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    
+    .logout-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Content Area */
+    .content {
+        padding: 30px;
+        min-height: calc(100vh - var(--header-height));
+    }
+    
+    /* Cards */
+    .card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 25px;
+        transition: var(--transition);
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1), 0 4px 10px rgba(0,0,0,0.06);
+    }
+    
+    .card-header {
+        padding: 20px 25px;
+        border-bottom: 1px solid #f1f5f9;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    .card-body {
+        padding: 25px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-danger {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+    }
+    
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #374151;
+        font-weight: 500;
+    }
+    
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: var(--transition);
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+    }
+    
+    /* Table Styles */
+    .table-container {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    table th,
+    table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    table th {
+        background: #f8fafc;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    table tr:hover {
+        background: #f8fafc;
+    }
+    
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        animation: slideInUp 0.3s ease;
+    }
+    
+    .modal-header {
+        padding: 20px 25px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #6b7280;
+    }
+    
+    .modal-close:hover {
+        color: #374151;
+    }
+    
+    .modal-body {
+        padding: 25px;
+    }
+    
+    .modal-footer {
+        padding: 20px 25px;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
+    }
+    
+    /* Toast Notifications */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 3000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 400px;
+    }
+    
+    .toast {
+        padding: 15px 20px;
+        border-radius: 10px;
+        color: white;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transform: translateX(450px);
+        opacity: 0;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .toast.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .toast.success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    .toast.error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .toast.info {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+    
+    /* 增强样式 */
+    .button-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .search-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        gap: 20px;
+        flex-wrap: nowrap; /* Prevent wrapping unless specifically needed */
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 20px;
+        align-items: stretch;
+        min-height: calc(100vh - var(--header-height) - 80px);
+    }
+
+    .group-panel {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.1);
+        padding: 16px;
+        position: sticky;
+        top: calc(var(--header-height) + 20px);
+        height: calc(100vh - var(--header-height) - 80px); /* Fixed height aligned to page bottom */
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .group-header {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .group-tree {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 6px;
+        min-height: 0;
+    }
+
+    .group-item {
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .group-toggle {
+        width: 22px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        color: #4b5563;
+        cursor: pointer;
+        background: #f3f4f6;
+        border-radius: 6px;
+    }
+
+    .group-toggle.placeholder {
+        display: none;
+        cursor: default;
+    }
+
+    .group-item:hover {
+        background: #f8fafc;
+    }
+
+    .group-item.active {
+        background: rgba(102, 126, 234, 0.1);
+        color: #4f46e5;
+        font-weight: 600;
+    }
+
+    .group-children {
+        list-style: none;
+        padding-left: 16px;
+        margin: 0;
+    }
+
+    .group-empty {
+        color: #9ca3af;
+        font-size: 13px;
+        text-align: center;
+        padding: 12px 8px;
+    }
+
+    .mail-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        min-height: calc(100vh - var(--header-height) - 80px);
+    }
+
+    .mail-panel .card:last-of-type {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .mail-panel .card:last-of-type .card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .mail-panel .table-container {
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* Add explicit height for scrollable card body aligned to page bottom */
+    .scroll-card-body {
+        /* 260px accounts for: header (70px) + card header (~80px) + toolbar (~50px) + padding/margins (~60px) */
+        height: calc(100vh - var(--header-height) - 260px); /* Fixed height aligned to page bottom */
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .scroll-card-body .table-container {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    .receive-modal .modal-content {
+        max-width: 1600px;
+        width: 98%;
+        max-height: 98vh; /* Increased from 95vh */
+    }
+
+    .receive-body {
+        display: grid;
+        grid-template-columns: var(--receive-sidebar-width) 1fr;
+        gap: 16px;
+        min-height: 700px; /* Increased from 600px for taller modal */
+        max-height: calc(98vh - 100px); /* Increased vh from 95% to 98%, reduced offset from 140px to 100px */
+    }
+
+    .receive-sidebar {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        position: sticky;
+        top: 0;
+        align-self: flex-start;
+    }
+
+    .receive-mailbox-label {
+        font-size: 13px;
+        color: #6b7280;
+    }
+
+    .receive-mailbox-value {
+        font-weight: 600;
+        color: #1f2937;
+        word-break: break-all;
+    }
+
+    .receive-sidebar .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .receive-tab {
+        width: 100%;
+        text-align: left;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .receive-tab:hover {
+        border-color: #cbd5e1;
+    }
+
+    .receive-tab.active {
+        background: rgba(102, 126, 234, 0.12);
+        border-color: var(--primary-color);
+        color: #4f46e5;
+    }
+
+    .receive-main {
+        background: #fff;
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+        max-height: var(--scroll-card-max-height);
+    }
+
+    .receive-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .receive-status {
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .receive-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0;
+    }
+
+    .receive-table th,
+    .receive-table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .receive-table tr:hover {
+        background: #f8fafc;
+        cursor: pointer;
+    }
+
+    .receive-empty {
+        text-align: center;
+        color: #94a3b8;
+        padding: 24px 10px;
+    }
+
+    .receive-detail {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .receive-detail h4 {
+        margin: 0;
+    }
+
+    .receive-meta {
+        color: #6b7280;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .receive-back {
+        margin-bottom: 8px;
+    }
+
+    #receiveListView,
+    #receiveDetailView {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+    }
+
+    #receivePagination {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding: 8px 0 4px;
+        margin-top: 6px;
+        display: flex;
+        justify-content: flex-start;
+        z-index: 2;
+    }
+
+    .toolbar-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .toolbar-row .button-group {
+        margin-bottom: 0;
+    }
+
+    .toolbar-row .search-controls {
+        margin-bottom: 0;
+        flex: 1;
+        justify-content: flex-end;
+    }
+
+    .group-context-menu {
+        position: absolute;
+        z-index: 2100;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        display: none;
+        min-width: 160px;
+    }
+
+    .group-context-menu button {
+        width: 100%;
+        border: none;
+        background: transparent;
+        padding: 10px 14px;
+        text-align: left;
+        cursor: pointer;
+        font-size: 13px;
+        color: #374151;
+    }
+
+    .group-context-menu button:hover {
+        background: #f3f4f6;
+    }
+
+    .group-context-menu button:disabled {
+        color: #9ca3af;
+        cursor: not-allowed;
+        background: transparent;
+    }
+    
+    .search-box {
+        display: flex;
+        gap: 10px;
+        flex: 1;
+        max-width: 600px; /* Increased from 400px for longer search box */
+        min-width: 0; /* Allow shrinking */
+    }
+    
+    .search-box input {
+        flex: 1;
+        min-width: 250px; /* Increased from 150px for better appearance */
+        padding: 10px 16px; /* Enhanced padding for better visual appeal */
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .search-box input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+    }
+    
+    .search-box input::placeholder {
+        color: #9ca3af;
+        font-style: italic;
+    }
+    
+    .page-controls select {
+        padding: 8px 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .pagination-container {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding: 10px 0 6px;
+        margin-top: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.03);
+        z-index: 5;
+    }
+    
+    .pagination-info {
+        color: #6b7280;
+        font-size: 14px;
+        margin-right: 20px;
+    }
+
+    .page-size-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .page-size-control select {
+        padding: 8px 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .page-btn {
+        padding: 8px 12px;
+        border: 1px solid #e5e7eb;
+        background: white;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        transition: var(--transition);
+        cursor: pointer;
+    }
+    
+    .page-btn:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+    }
+    
+    .page-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .form-row .form-group {
+        flex: 1;
+        margin-bottom: 0;
+    }
+
+    .form-row.two-cols {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 15px;
+    }
+    
+    .server-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-top: 15px;
+    }
+
+    #groupSelect,
+    #batchGroupSelect {
+        max-height: 240px;
+        overflow-y: auto;
+    }
+    
+    .server-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid #f3f4f6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    
+    .server-item:hover {
+        background: #f8fafc;
+    }
+    
+    .server-item:last-child {
+        border-bottom: none;
+    }
+    
+    .server-info {
+        flex: 1;
+    }
+    
+    .server-id {
+        font-size: 11px;
+        color: #9ca3af;
+        font-weight: 500;
+    }
+    
+    .server-name {
+        font-weight: 500;
+        color: #1e293b;
+    }
+    
+    .server-address {
+        font-size: 12px;
+        color: #6b7280;
+    }
+    
+    .server-actions {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .btn-small {
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+    
+    /* Mobile menu toggle - default hidden */
+    .mobile-menu-toggle {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #64748b;
+        transition: var(--transition);
+    }
+    
+    .mobile-menu-toggle:hover {
+        color: var(--primary-color);
+    }
+    
+    @media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .group-panel {
+            height: auto;
+            max-height: none;
+        }
+        
+        .toolbar-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .toolbar-row .search-controls {
+            justify-content: space-between;
+        }
+
+        .receive-body {
+            grid-template-columns: 1fr;
+        }
+
+        .receive-sidebar {
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+
+        .receive-tab {
+            flex: 1 1 45%;
+        }
+
+        .receive-sidebar .btn {
+            flex: 1 1 100%;
+        }
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .sidebar {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar.mobile-open {
+            transform: translateX(0);
+        }
+        
+        body.sidebar-collapsed .sidebar {
+            width: 260px;
+        }
+        
+        body.sidebar-collapsed .nav-item {
+            font-size: inherit;
+            padding: 15px 25px;
+            text-align: left;
+        }
+        
+        body.sidebar-collapsed .nav-item i {
+            margin-right: 10px;
+            font-size: inherit;
+        }
+        
+        body.sidebar-collapsed .sidebar-logo {
+            font-size: 20px;
+            padding: 20px;
+        }
+        
+        body.sidebar-collapsed .sidebar-logo::after {
+            content: '';
+        }
+        
+        .sidebar-toggle {
+            display: none;
+        }
+        
+        .main-content {
+            margin-left: 0;
+        }
+        
+        .header-title {
+            font-size: 20px;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .mobile-menu-toggle {
+            display: block !important;
+        }
+        
+        .button-group {
+            flex-direction: column;
+        }
+        
+        .search-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .search-box {
+            max-width: none;
+        }
+        
+        .form-row {
+            flex-direction: column;
+        }
+        
+        .pagination-container {
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+    }
+    
+    /* Mobile overlay */
+    .mobile-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        display: none;
+    }
+    
+    .mobile-overlay.show {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<!-- Toast notification container -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- Mobile overlay -->
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">📧 邮件管理系统</div>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="{{ url_for('admin_home') }}" class="nav-item">
+            <i>🏠</i> 首页
+        </a>
+        <a href="{{ url_for('admin_mailbox') }}" class="nav-item active">
+            <i>📫</i> 邮箱管理
+        </a>
+        <a href="{{ url_for('admin_daili') }}" class="nav-item">
+            <i>🌐</i> 代理池
+        </a>
+        <a href="{{ url_for('admin_kami') }}" class="nav-item">
+            <i>🔑</i> 卡密管理
+        </a>
+        <a href="{{ url_for('admin_kamirizhi') }}" class="nav-item">
+            <i>📝</i> 卡密日志
+        </a>
+        <a href="{{ url_for('admin_shoujian') }}" class="nav-item">
+            <i>📧</i> 收件日志
+        </a>
+        <a href="{{ url_for('admin_system') }}" class="nav-item">
+            <i>⚙️</i> 系统设置
+        </a>
+    </nav>
+</div>
+
+<!-- Main Content -->
+    <div class="main-content">
+        <div class="header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="展开侧边栏">⮞</button>
+                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+                <h1 class="header-title">邮箱管理</h1>
+            </div>
+            <div class="header-actions">
+                <div class="user-info">
+                <span>欢迎，{{ admin_username }}</span>
+            </div>
+            <a href="{{ url_for('admin_logout') }}" class="logout-btn">退出登录</a>
+        </div>
+    </div>
+    
+    <div class="content">
+        <div class="content-grid">
+            <div class="group-panel" id="groupPanel">
+                <div class="group-header">
+                    <span>分组管理</span>
+                </div>
+                <ul class="group-tree" id="groupTree"></ul>
+                <div class="group-empty" id="groupEmptyHint" style="display: none;">暂无自定义分组</div>
+            </div>
+            
+            <div class="mail-panel">
+                <div class="card" style="margin-bottom: 15px;">
+                    <div class="card-body" style="padding: 20px;">
+                        <div class="toolbar-row">
+                            <div class="button-group">
+                                <button class="btn btn-primary" onclick="showAddModal()">
+                                    ➕ 添加邮箱
+                                </button>
+                                <button class="btn btn-primary" onclick="showBatchAddModal()">
+                                    📝 批量添加邮箱
+                                </button>
+                                <button class="btn btn-primary" onclick="showServerModal()">
+                                    🌐 添加服务器地址
+                                </button>
+                                <button class="btn btn-danger" onclick="batchDeleteMailboxes()" id="batchDeleteBtn" style="display: none;">
+                                    🗑️ 批量删除
+                                </button>
+                            </div>
+                            <div class="search-controls">
+                                <div class="search-box">
+                                    <input type="text" id="searchInput" placeholder="搜索邮箱地址或服务器..." onkeyup="searchMailboxes()">
+                                    <button class="btn btn-primary" onclick="searchMailboxes()">🔍 搜索</button>
+                                    <button class="btn btn-danger" onclick="clearMailboxSearch()">🗑️ 清除</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body scroll-card-body">
+                        <div class="table-container">
+                            <table id="mailboxTable">
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                                        <th>序号ID</th>
+                                        <th>分组</th>
+                                        <th>邮箱地址</th>
+                                        <th>服务器（收/发）</th>
+                                        <th>添加时间</th>
+                                        <th>备注</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 邮箱列表将通过JavaScript加载 -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页导航 -->
+                        <div class="pagination-container" id="paginationContainer">
+                            <!-- 分页按钮将通过JavaScript生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 分组右键菜单 -->
+<div id="groupContextMenu" class="group-context-menu">
+    <button type="button" data-action="add">添加分组</button>
+    <button type="button" data-action="add-child">添加下级分组</button>
+    <button type="button" data-action="edit">编辑</button>
+    <button type="button" data-action="delete">删除</button>
+</div>
+
+<!-- 分组新增/编辑模态框 -->
+<div id="groupModal" class="modal">
+    <div class="modal-content" style="max-width: 420px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="groupModalTitle">添加分组</h3>
+            <button class="modal-close" onclick="closeGroupModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>上级分组</label>
+                <input type="text" id="groupParentName" readonly style="background:#f8fafc;">
+            </div>
+            <div class="form-group">
+                <label for="groupNameInput">分组名称 *</label>
+                <input type="text" id="groupNameInput" placeholder="输入分组名称">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeGroupModal()">取消</button>
+            <button type="button" class="btn btn-primary" onclick="submitGroupForm()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 发件模态框 -->
+<div id="sendMailModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">发送邮件</h3>
+            <button class="modal-close" onclick="closeSendModal()">&times;</button>
+        </div>
+            <div class="modal-body">
+                <form id="sendMailForm">
+                    <input type="hidden" id="sendMailboxId">
+                    <div class="form-group">
+                        <label for="sendNickname">昵称</label>
+                        <input type="text" id="sendNickname" placeholder="收件人看到的发件人昵称（可选）">
+                    </div>
+                    <div class="form-group">
+                        <label for="sendTo">收件人 *</label>
+                        <input type="email" id="sendTo" required placeholder="例: target@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="sendSubject">主题</label>
+                    <input type="text" id="sendSubject" placeholder="邮件主题">
+                </div>
+                <div class="form-group">
+                    <label for="sendContent">正文</label>
+                    <textarea id="sendContent" rows="6" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;" placeholder="邮件正文"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeSendModal()">取消</button>
+            <button type="button" class="btn btn-primary" onclick="sendMailNow()">发送</button>
+        </div>
+    </div>
+</div>
+
+<!-- 收件模态框 -->
+<div id="receiveModal" class="modal receive-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">收件</h3>
+            <button class="modal-close" onclick="closeReceiveModal()">&times;</button>
+        </div>
+        <div class="modal-body receive-body">
+            <div class="receive-sidebar">
+                <div>
+                    <div class="receive-mailbox-label">当前邮箱</div>
+                    <div class="receive-mailbox-value" id="receiveMailboxLabel">-</div>
+                </div>
+                <div>
+                    <div class="receive-mailbox-label">收取<span id="emailCountDisplay">10</span>封</div>
+                    <input type="number" id="emailCountInput" min="1" max="100" value="10" style="width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px;" oninput="updateEmailCountDisplay(this.value)">
+                </div>
+                <button class="btn btn-primary" onclick="fetchMailboxMails()">收取邮件</button>
+                <button class="receive-tab active" data-folder="inbox" onclick="switchReceiveFolder('inbox')">📥 收件箱</button>
+                <button class="receive-tab" data-folder="trash" onclick="switchReceiveFolder('trash')">🗑️ 垃圾箱</button>
+            </div>
+            <div class="receive-main">
+                <div id="receiveListView">
+                    <table class="receive-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">序号</th>
+                                <th>标题</th>
+                                <th>发件人</th>
+                                <th>收件人</th>
+                                <th>时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receiveTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="receiveDetailView" style="display: none;">
+                    <button class="btn btn-primary btn-small receive-back" onclick="backToReceiveList()">返回列表</button>
+                    <div class="receive-detail">
+                        <h4 id="receiveDetailSubject">-</h4>
+                        <div class="receive-meta" id="receiveDetailMeta"></div>
+                        <div style="background:#f8fafc; border-radius: 10px; padding: 12px; border:1px solid #e5e7eb;" id="receiveDetailBody"></div>
+                        <div id="receiveDetailImages" style="display:none; margin-top:10px;">
+                            <div style="font-weight:600; margin-bottom:6px; color:#374151; font-size:13px;">📷 图片</div>
+                            <div id="receiveDetailImageContainer" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pagination-container" id="receivePagination"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑邮箱模态框 -->
+<div id="mailboxModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">添加邮箱</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="mailboxForm">
+                <input type="hidden" id="mailboxId" name="id">
+                <input type="hidden" id="formAction" name="action" value="add">
+                
+                <!-- 邮箱账号和邮箱密码同一行 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">邮箱账号 *</label>
+                        <input type="email" id="email" name="email" required placeholder="例: user@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">邮箱密码 *</label>
+                        <input type="password" id="password" name="password" required placeholder="邮箱密码或授权码">
+                    </div>
+                </div>
+                
+                <!-- 选择服务器和收件服务器同一行 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="serverSelect">选择服务器</label>
+                        <select id="serverSelect" onchange="selectServer()">
+                            <option value="">选择已有服务器或手动输入</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="server">收件服务器地址 *</label>
+                        <input type="text" id="server" name="server" required 
+                               placeholder="例: imap.qq.com">
+                    </div>
+                </div>
+                
+                <!-- 分组和发件服务器 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="groupSelect">分组</label>
+                        <select id="groupSelect">
+                            <!-- 分组选项通过脚本填充 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sendServer">发件服务器地址 *</label>
+                        <input type="text" id="sendServer" name="send_server" required 
+                               placeholder="例: smtp.qq.com">
+                    </div>
+                </div>
+                
+                <!-- 协议和端口同一行 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="protocol">收件协议 *</label>
+                        <select id="protocol" name="protocol" onchange="updatePortByProtocol()">
+                            <option value="imap">IMAP</option>
+                            <option value="pop3">POP3</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="port">收件端口 *</label>
+                        <input type="number" id="port" name="port" required 
+                               placeholder="例: 993">
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="ssl" name="ssl" checked onchange="updatePortBySSL()">
+                            <label for="ssl">收件启用SSL</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 发件协议和端口 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sendProtocol">发件协议 *</label>
+                        <select id="sendProtocol" name="send_protocol" onchange="updateSendPortByProtocol()">
+                            <option value="smtp">SMTP(SSL)</option>
+                            <option value="smtp_starttls">SMTP(STARTTLS)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sendPort">发件端口 *</label>
+                        <input type="number" id="sendPort" name="send_port" required 
+                               placeholder="例: 465">
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="sendSsl" name="send_ssl" checked onchange="updateSendPortBySSL()">
+                            <label for="sendSsl">发件启用SSL</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 备注 -->
+                <div class="form-group">
+                    <label for="remarks">备注</label>
+                    <textarea id="remarks" name="remarks" rows="3" placeholder="输入备注信息" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;"></textarea>
+                </div>
+                
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeModal()">取消</button>
+            <button type="button" class="btn btn-success" onclick="testMailbox()" id="testBtn" style="display: none;">测试邮箱</button>
+            <button type="button" class="btn btn-primary" onclick="saveMailbox()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 批量添加邮箱模态框 -->
+<div id="batchAddModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">批量添加邮箱</h3>
+            <button class="modal-close" onclick="closeBatchAddModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="batchAddForm">
+                <!-- 批量邮箱内容一行 -->
+                <div class="form-group">
+                    <label for="batchContent">批量邮箱内容 *</label>
+                    <textarea id="batchContent" name="batch_content" rows="10" 
+                              placeholder="格式：账号----密码（每行一个）&#10;例如：&#10;user1@example.com----password1&#10;user2@example.com----password2"
+                              style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: monospace;"></textarea>
+                    <small style="color: #6b7280;">请按照"账号----密码"的格式填写，每行一个账号</small>
+                </div>
+                
+                <!-- 选择服务器和收件服务器一行 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="batchServerSelect">选择服务器</label>
+                        <select id="batchServerSelect" onchange="selectBatchServer()">
+                            <option value="">选择已有服务器或手动输入</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="batchServer">收件服务器地址 *</label>
+                        <input type="text" id="batchServer" name="server" required 
+                               placeholder="例: imap.qq.com">
+                    </div>
+                </div>
+                
+                <!-- 分组和发件服务器 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="batchGroupSelect">分组</label>
+                        <select id="batchGroupSelect">
+                            <!-- 分组选项通过脚本填充 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="batchSendServer">发件服务器地址 *</label>
+                        <input type="text" id="batchSendServer" name="send_server" required 
+                               placeholder="例: smtp.qq.com">
+                    </div>
+                </div>
+                
+                <!-- 协议和端口一行 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="batchProtocol">收件协议 *</label>
+                        <select id="batchProtocol" name="protocol" onchange="updateBatchPortByProtocol()">
+                            <option value="imap">IMAP</option>
+                            <option value="pop3">POP3</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="batchPort">收件端口 *</label>
+                        <input type="number" id="batchPort" name="port" required 
+                               placeholder="例: 993">
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="batchSsl" name="ssl" checked onchange="updateBatchPortBySSL()">
+                            <label for="batchSsl">收件启用SSL</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="batchSendProtocol">发件协议 *</label>
+                        <select id="batchSendProtocol" name="send_protocol" onchange="updateBatchSendPortByProtocol()">
+                            <option value="smtp">SMTP(SSL)</option>
+                            <option value="smtp_starttls">SMTP(STARTTLS)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="batchSendPort">发件端口 *</label>
+                        <input type="number" id="batchSendPort" name="send_port" required 
+                               placeholder="例: 465">
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="batchSendSsl" name="send_ssl" checked onchange="updateBatchSendPortBySSL()">
+                            <label for="batchSendSsl">发件启用SSL</label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeBatchAddModal()">取消</button>
+            <button type="button" class="btn btn-primary" onclick="saveBatchMailboxes()">批量添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- 备注模态框 -->
+<div id="remarksModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3 class="modal-title">编辑备注</h3>
+            <button class="modal-close" onclick="closeRemarksModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="remarksForm">
+                <input type="hidden" id="remarksMailboxId">
+                <div class="form-group">
+                    <label for="remarksText">备注内容</label>
+                    <textarea id="remarksText" rows="5" placeholder="输入备注信息" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeRemarksModal()">取消</button>
+            <button type="button" class="btn btn-primary" onclick="saveMailboxRemarks()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 服务器管理模态框 -->
+<div id="serverModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">服务器地址管理</h3>
+            <button class="modal-close" onclick="closeServerModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- 添加服务器表单 -->
+            <form id="serverForm">
+                <input type="hidden" id="serverId" name="id">
+                <input type="hidden" id="serverAction" name="action" value="add">
+                
+                <!-- 仅保留上方：服务器名称、服务器地址 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="serverName">服务器名称 *</label>
+                        <input type="text" id="serverName" name="server_name" required 
+                               placeholder="例: QQ邮箱">
+                    </div>
+                </div>
+                
+                 <div class="form-row two-cols">
+                     <div class="form-group">
+                         <label for="serverAddress">收件服务器地址 *</label>
+                         <input type="text" id="serverAddress" name="server_address" required 
+                                placeholder="例: imap.qq.com">
+                     </div>
+                     <div class="form-group">
+                         <label for="sendServerAddress">发件服务器地址 *</label>
+                         <input type="text" id="sendServerAddress" name="send_server_address" required 
+                                placeholder="例: smtp.qq.com">
+                     </div>
+                 </div>
+                 
+                 <!-- 隐藏字段保持默认值 -->
+                 <input type="hidden" id="defaultPortImap" name="default_port_imap" value="993">
+                 <input type="hidden" id="defaultPortPop3" name="default_port_pop3" value="995">
+                 <input type="hidden" id="serverSslEnabled" name="ssl_enabled" value="true">
+                 <input type="hidden" id="serverRemarks" name="remarks" value="">
+                
+                <div style="text-align: right; margin-top: 15px;">
+                    <button type="button" class="btn btn-primary" onclick="saveServer()">
+                        <span id="serverSaveText">添加服务器</span>
+                    </button>
+                </div>
+            </form>
+            
+            <!-- 已添加服务器列表 -->
+            <div style="margin-top: 25px;">
+                <h4 style="margin-bottom: 15px; color: #374151;">已添加的服务器</h4>
+                <div class="server-list" id="serverList">
+                    <!-- 服务器列表将通过JavaScript加载 -->
+                </div>
+                <div style="margin-top: 15px; text-align: right;">
+                    <button class="btn btn-danger" onclick="batchDeleteServers()" id="batchDeleteServersBtn" style="display: none;">
+                        批量删除选中
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeServerModal()">关闭</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const SIDEBAR_COLLAPSE_KEY = 'adminSidebarCollapsed';
+
+    function updateSidebarToggleButton() {
+        const btn = document.getElementById('sidebarToggle');
+        if (!btn) return;
+        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+        btn.textContent = isCollapsed ? '⮞' : '⮜';
+        btn.setAttribute('aria-expanded', (!isCollapsed).toString());
+        btn.title = isCollapsed ? '展开菜单' : '收起菜单';
+    }
+
+    function applySidebarState(collapsed) {
+        if (window.innerWidth <= 768) {
+            document.body.classList.remove('sidebar-collapsed');
+            updateSidebarToggleButton();
+            return;
+        }
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        updateSidebarToggleButton();
+    }
+
+    function toggleSidebarCollapse() {
+        const shouldCollapse = !document.body.classList.contains('sidebar-collapsed');
+        localStorage.setItem(SIDEBAR_COLLAPSE_KEY, shouldCollapse ? '1' : '0');
+        applySidebarState(shouldCollapse);
+    }
+
+    function initSidebarCollapse() {
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', toggleSidebarCollapse);
+        }
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+        const shouldCollapse = saved === null ? true : saved === '1';
+        applySidebarState(shouldCollapse);
+    }
+
+    function handleSidebarResize() {
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+        const shouldCollapse = saved === null ? true : saved === '1';
+        applySidebarState(shouldCollapse);
+        if (window.innerWidth > 768) {
+            closeMobileMenu();
+        }
+    }
+
+    // Mobile menu functionality
+    function toggleMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        if (sidebar.classList.contains('mobile-open')) {
+            closeMobileMenu();
+        } else {
+            openMobileMenu();
+        }
+    }
+    
+    function openMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.add('mobile-open');
+        overlay.classList.add('show');
+    }
+    
+    function closeMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('show');
+    }
+    
+    // Close mobile menu when clicking on navigation items
+    document.addEventListener('DOMContentLoaded', function() {
+        initSidebarCollapse();
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', function() {
+                closeMobileMenu();
+            });
+        });
+        window.addEventListener('resize', handleSidebarResize);
+    });
+
+    // 全局变量
+    let currentPage = 1;
+    let perPage = 100;
+    let searchQuery = '';
+    let totalPages = 1;
+    let selectedMailboxes = new Set();
+    let selectedServers = new Set();
+    let servers = [];
+    let mailboxData = [];
+    const ROOT_GROUP_ID = 'all_groups';
+    const UNGROUPED_GROUP_ID = 'ungrouped';
+    let groups = [];
+    let mailboxGroupMap = {};
+    let mailboxGroupMappings = [];
+    let selectedGroupId = ROOT_GROUP_ID;
+    let groupModalParentId = ROOT_GROUP_ID;
+    let groupModalEditId = null;
+    let groupFormMode = 'add';
+    let contextTargetGroupId = null;
+    let collapsedGroups = {};
+    const GROUP_COLLAPSE_STORAGE_KEY = 'mailboxGroupCollapseState';
+    const TOP_LEVEL_LABEL = '主分组';
+    const RECEIVE_STORE_KEY = 'mailboxReceiveStore';
+    const RECEIVE_MIN_MAILS = 10;
+    const RECEIVE_RANDOM_RANGE = 21; // random span (0-20, 21 possibilities) added to min to yield 10-30 mails
+    const RECEIVE_TRASH_DIVISOR = 5; // every 5th mail is routed to trash
+    const MINUTE_IN_MS = 60000;
+    let receiveState = {
+        mailboxId: null,
+        folder: 'inbox',
+        perPage: 100,
+        page: 1,
+        mails: [],
+        activeMail: null
+    };
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        initGroups();
+        bindGroupPanelEvents();
+        loadServers();
+        loadMailboxes();
+        
+        // 使用事件委托处理邮箱表格按钮点击
+        const mailboxTable = document.getElementById('mailboxTable');
+        if (mailboxTable) {
+            mailboxTable.addEventListener('click', function(e) {
+                const target = e.target;
+                
+                // 处理操作按钮
+                if (target.tagName === 'BUTTON' && target.dataset.action) {
+                    const action = target.dataset.action;
+                    const mailboxId = parseInt(target.dataset.mailboxId, 10);
+                    
+                    if (!mailboxId || isNaN(mailboxId) || mailboxId <= 0) return;
+                    
+                    switch (action) {
+                        case 'edit':
+                            editMailbox(mailboxId);
+                            break;
+                        case 'receive':
+                            openReceiveModal(mailboxId);
+                            break;
+                        case 'send':
+                            openSendModal(mailboxId);
+                            break;
+                        case 'test':
+                            testMailbox(mailboxId);
+                            break;
+                        case 'remarks':
+                            editMailboxRemarks(mailboxId);
+                            break;
+                        case 'delete':
+                            deleteMailbox(mailboxId);
+                            break;
+                    }
+                }
+            });
+            
+            // 使用事件委托处理复选框变化
+            mailboxTable.addEventListener('change', function(e) {
+                const target = e.target;
+                
+                if (target.classList.contains('mailbox-checkbox')) {
+                    const mailboxId = parseInt(target.dataset.mailboxId, 10);
+                    if (mailboxId && !isNaN(mailboxId) && mailboxId > 0) {
+                        toggleMailboxSelection(mailboxId);
+                    }
+                }
+            });
+        }
+    });
+    
+    // ========== 邮箱管理功能 ==========
+
+    async function refreshMailboxGroupMappings() {
+        try {
+            const response = await fetch('/admin/api/mailbox-groups?only_mappings=1');
+            const data = await response.json();
+            if (data.success) {
+                mailboxGroupMappings = data.mappings || [];
+                rebuildMailboxGroupMapFromMappings();
+            }
+        } catch (error) {
+            console.error('加载邮箱分组映射失败:', error);
+        }
+    }
+    
+    // 加载邮箱列表
+    async function loadMailboxes(page = 1, search = '') {
+        try {
+            currentPage = page;
+            searchQuery = search;
+            
+            const params = new URLSearchParams({
+                page: 1,
+                per_page: 100000,  // 支持加载大量邮箱（最多10万个）
+                search: search,
+                fast: '1'
+            });
+            
+            const response = await fetch(`/admin/api/mailbox?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                mailboxData = data.data || [];
+                await refreshMailboxGroupMappings();
+                rebuildMailboxGroupMapFromMappings();
+                recalculateGroupCounts();  // Recalculate counts after loading mailboxes
+                renderGroupTree();  // Re-render tree to show updated counts
+                renderMailboxView(page);
+            } else {
+                showToast('加载邮箱列表失败', 'error');
+            }
+        } catch (error) {
+            console.error('加载邮箱列表失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 渲染邮箱表格
+    function renderMailboxTable(mailboxes) {
+        const tbody = document.querySelector('#mailboxTable tbody');
+        tbody.innerHTML = '';
+        
+        if (mailboxes.length === 0) {
+            const colCount = document.querySelectorAll('#mailboxTable thead th').length || 8;
+            tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align: center; color: #6b7280;">暂无邮箱账号</td></tr>`;
+            return;
+        }
+        
+        mailboxes.forEach((mailbox, index) => {
+            const row = document.createElement('tr');
+            const rowNumber = (currentPage - 1) * perPage + index + 1;
+            row.innerHTML = `
+                <td><input type="checkbox" class="mailbox-checkbox" value="${mailbox.id}" data-mailbox-id="${mailbox.id}"></td>
+                <td>${rowNumber}</td>
+                <td>${escapeHtml(getMailboxGroupName(mailbox))}</td>
+                <td>${escapeHtml(mailbox.email)}</td>
+                <td>
+                    <div>收：${escapeHtml(mailbox.server)}</div>
+                    <div>发：${escapeHtml(mailbox.send_server || mailbox.server || '')}</div>
+                </td>
+                <td>${formatDateTime(mailbox.created_at)}</td>
+                <td>${escapeHtml(mailbox.remarks || '')}</td>
+                <td>
+                    <div class="actions" style="display: flex; gap: 5px; flex-wrap: wrap;">
+                        <button class="btn btn-success btn-small" data-action="edit" data-mailbox-id="${mailbox.id}">编辑</button>
+                        <button class="btn btn-primary btn-small" data-action="receive" data-mailbox-id="${mailbox.id}">收件</button>
+                        <button class="btn btn-primary btn-small" data-action="send" data-mailbox-id="${mailbox.id}">发件</button>
+                        <button class="btn btn-primary btn-small" data-action="test" data-mailbox-id="${mailbox.id}">测试</button>
+                        <button class="btn btn-success btn-small" data-action="remarks" data-mailbox-id="${mailbox.id}">备注</button>
+                        <button class="btn btn-danger btn-small" data-action="delete" data-mailbox-id="${mailbox.id}">删除</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+        updateBatchDeleteButton();
+    }
+    
+    function renderMailboxView(page = 1) {
+        const filteredByGroup = mailboxData.filter(mailbox => {
+            const groupId = mailboxGroupMap[mailbox.id] ?? mailboxGroupMap[mailbox.email];
+            if (selectedGroupId === ROOT_GROUP_ID) return true;
+            if (selectedGroupId === UNGROUPED_GROUP_ID) {
+                return !groupId || !getGroupById(groupId);
+            }
+            return groupId && (groupId === selectedGroupId || isDescendantGroup(groupId, selectedGroupId));
+        });
+        selectedMailboxes.clear();
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) selectAll.checked = false;
+
+        const safePage = Math.max(1, Math.min(page, Math.max(1, Math.ceil(filteredByGroup.length / perPage))));
+        const start = (safePage - 1) * perPage;
+        const pageData = filteredByGroup.slice(start, start + perPage);
+        currentPage = safePage;
+        renderMailboxTable(pageData);
+        renderPaginationManual(filteredByGroup.length, safePage);
+    }
+
+    // 渲染分页
+    function renderPaginationManual(totalCount, page) {
+        const container = document.getElementById('paginationContainer');
+        totalPages = Math.max(1, Math.ceil(totalCount / perPage));
+        
+        let html = `<div class="pagination-info">共 ${totalCount} 条记录，第 ${page} 页，共 ${totalPages} 页</div>`;
+        html += `<div class="page-size-control">
+            <label for="perPageSelect">每页</label>
+            <select id="perPageSelect" onchange="changePerPage()">
+                <option value="100" ${perPage === 100 ? 'selected' : ''}>100条</option>
+                <option value="150" ${perPage === 150 ? 'selected' : ''}>150条</option>
+                <option value="200" ${perPage === 200 ? 'selected' : ''}>200条</option>
+                <option value="300" ${perPage === 300 ? 'selected' : ''}>300条</option>
+            </select>
+        </div>`;
+        
+        if (totalPages > 1) {
+            html += '<div class="pagination-buttons">';
+            
+            // 上一页
+            if (page > 1) {
+                html += `<button class="page-btn" onclick="renderMailboxView(${page - 1})">« 上一页</button>`;
+            }
+            
+            // 页码按钮
+            let startPage = Math.max(1, page - 2);
+            let endPage = Math.min(totalPages, page + 2);
+            
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="renderMailboxView(1)">1</button>`;
+                if (startPage > 2) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === page ? 'active' : '';
+                html += `<button class="page-btn ${activeClass}" onclick="renderMailboxView(${i})">${i}</button>`;
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+                html += `<button class="page-btn" onclick="renderMailboxView(${totalPages})">${totalPages}</button>`;
+            }
+            
+            // 下一页
+            if (page < totalPages) {
+                html += `<button class="page-btn" onclick="renderMailboxView(${page + 1})">下一页 »</button>`;
+            }
+            
+            html += '</div>';
+        }
+        
+        container.innerHTML = html;
+    }
+
+    function getGroupById(id) {
+        return groups.find(g => g.id === id);
+    }
+
+    function isDescendantGroup(groupId, ancestorId) {
+        let current = getGroupById(groupId);
+        while (current && current.parentId) {
+            if (current.parentId === ancestorId) return true;
+            current = getGroupById(current.parentId);
+        }
+        return false;
+    }
+
+    function getMailboxGroupName(mailbox) {
+        const groupId = mailboxGroupMap[mailbox.id] ?? mailboxGroupMap[mailbox.email];
+        const group = groupId ? getGroupById(groupId) : null;
+        if (!group) return '未分组';
+        return group.name;
+    }
+
+    function getTopLevelCustomGroups() {
+        return groups.filter(g => g.parentId === null && ![ROOT_GROUP_ID, UNGROUPED_GROUP_ID].includes(g.id));
+    }
+
+    function getSelectableGroups() {
+        const result = [];
+        const topGroups = getTopLevelCustomGroups();
+        const traverse = (group, pathParts) => {
+            const children = groups.filter(g => g.parentId === group.id && ![ROOT_GROUP_ID, UNGROUPED_GROUP_ID].includes(g.id));
+            const currentPath = [...pathParts, group.name];
+            result.push({ ...group, path: currentPath.join('\\') });
+            children.forEach(child => traverse(child, currentPath));
+        };
+        topGroups.forEach(group => {
+            const children = groups.filter(g => g.parentId === group.id && ![ROOT_GROUP_ID, UNGROUPED_GROUP_ID].includes(g.id));
+            if (children.length === 0) {
+                result.push({ ...group, path: group.name });
+            } else {
+                children.forEach(child => traverse(child, [group.name]));
+            }
+        });
+        return result;
+    }
+
+    function rebuildMailboxGroupMapFromMappings() {
+        mailboxGroupMap = {};
+        if (!Array.isArray(mailboxGroupMappings) || mailboxGroupMappings.length === 0 || !Array.isArray(mailboxData) || mailboxData.length === 0) {
+            return;
+        }
+        const idToEmail = {};
+        mailboxData.forEach(m => {
+            if (m && m.id !== undefined) {
+                idToEmail[m.id] = m.email;
+            }
+        });
+        mailboxGroupMappings.forEach(mapping => {
+            const mailboxId = mapping.mailbox_id ?? mapping.mailboxId;
+            const groupId = mapping.group_id ?? mapping.groupId;
+            if (!mailboxId || !groupId) return;
+            const email = idToEmail[mailboxId];
+            if (email) {
+                mailboxGroupMap[mailboxId] = groupId;
+                mailboxGroupMap[email] = groupId;
+            }
+        });
+    }
+
+    function refreshGroupSelects(selectedSingle = UNGROUPED_GROUP_ID, selectedBatch = UNGROUPED_GROUP_ID) {
+        const single = document.getElementById('groupSelect');
+        const batch = document.getElementById('batchGroupSelect');
+        if (!single || !batch) return;
+
+        const options = getSelectableGroups();
+        const renderOptions = (select, selected) => {
+            select.innerHTML = '';
+            const ungroupedOption = document.createElement('option');
+            ungroupedOption.value = UNGROUPED_GROUP_ID;
+            ungroupedOption.textContent = '未分组';
+            select.appendChild(ungroupedOption);
+
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.id;
+                option.textContent = opt.path || opt.name;
+                select.appendChild(option);
+            });
+            select.value = selected || UNGROUPED_GROUP_ID;
+        };
+
+        renderOptions(single, selectedSingle || UNGROUPED_GROUP_ID);
+        renderOptions(batch, selectedBatch || UNGROUPED_GROUP_ID);
+    }
+
+    function getDefaultGroups() {
+        return [
+            { id: ROOT_GROUP_ID, name: '所有分组', parentId: null },
+            { id: UNGROUPED_GROUP_ID, name: '未分组', parentId: null }
+        ];
+    }
+
+    async function persistGroups() {
+        // Legacy function kept for compatibility - groups are now persisted via individual API calls
+        // in submitGroupForm(), deleteGroup(), and assignGroupForEmail()
+        // This no-op placeholder prevents errors if old code paths still reference it
+        return true;
+    }
+
+    function recalculateGroupCounts() {
+        // Recalculate counts for all groups based on current mailboxData and mailboxGroupMappings
+        const groupedMailboxIds = new Set(mailboxGroupMappings.map(m => m.mailbox_id || m.mailboxId));
+        // Create a set of existing mailbox IDs to verify mappings reference existing mailboxes
+        const existingMailboxIds = new Set(mailboxData.map(m => m.id));
+        
+        // Update each group's count
+        groups.forEach(group => {
+            if (group.id === ROOT_GROUP_ID) {
+                // "所有分组" shows total count of all mailboxes
+                group.mailboxCount = mailboxData.length;
+            } else if (group.id === UNGROUPED_GROUP_ID) {
+                // "未分组" shows count of mailboxes not in any group
+                group.mailboxCount = mailboxData.filter(m => !groupedMailboxIds.has(m.id)).length;
+            } else {
+                // Custom groups: count mailboxes assigned to this group that still exist
+                const mailboxesInGroup = mailboxGroupMappings.filter(m => {
+                    const gid = m.group_id || m.groupId;
+                    const mid = m.mailbox_id || m.mailboxId;
+                    return gid === group.id && existingMailboxIds.has(mid);
+                });
+                group.mailboxCount = mailboxesInGroup.length;
+            }
+        });
+    }
+
+    async function initGroups() {
+        try {
+            // Load groups from API instead of localStorage
+            const response = await fetch('/admin/api/mailbox-groups?compact=1');
+            const data = await response.json();
+            
+            if (data.success) {
+                // Process groups from API
+                groups = data.groups || [];
+                mailboxGroupMappings = data.mappings || [];
+            } else {
+                console.error('Failed to load groups from API:', data.message);
+                groups = getDefaultGroups();
+                mailboxGroupMap = {};
+                mailboxGroupMappings = [];
+            }
+        } catch (e) {
+            console.error('Error loading groups from API:', e);
+            groups = getDefaultGroups();
+            mailboxGroupMap = {};
+            mailboxGroupMappings = [];
+        }
+        
+        // Ensure default groups exist
+        const ids = groups.map(g => g.id);
+        if (!ids.includes(ROOT_GROUP_ID)) {
+            // Both fields needed: parentId (used by frontend), parent_id (from backend API)
+            groups.unshift({ id: ROOT_GROUP_ID, name: '所有分组', parentId: null, parent_id: null, mailboxCount: mailboxData.length });
+        }
+        if (!ids.includes(UNGROUPED_GROUP_ID)) {
+            // Calculate ungrouped mailboxes count
+            const groupedMailboxIds = new Set(mailboxGroupMappings.map(m => m.mailbox_id || m.mailboxId));
+            const ungroupedCount = mailboxData.filter(m => !groupedMailboxIds.has(m.id)).length;
+            // Both fields needed: parentId (used by frontend), parent_id (from backend API)
+            groups.push({ id: UNGROUPED_GROUP_ID, name: '未分组', parentId: null, parent_id: null, mailboxCount: ungroupedCount });
+        }
+        
+        // Normalize parent_id (from backend API) to parentId (used by frontend code)
+        // Also normalize mailbox_count to mailboxCount
+        groups = groups.map(g => ({
+            ...g,
+            parentId: g.parentId || g.parent_id || null,
+            mailboxCount: g.mailboxCount !== undefined ? g.mailboxCount : (g.mailbox_count !== undefined ? g.mailbox_count : 0)
+        }));
+
+        // Recalculate all group counts based on current mailbox data
+        recalculateGroupCounts();
+
+        rebuildMailboxGroupMapFromMappings();
+        
+        // Load collapsed groups state from localStorage (browser-specific)
+        loadGroupCollapseState();
+        
+        selectedGroupId = ROOT_GROUP_ID;
+        renderGroupTree();
+        refreshGroupSelects();
+    }
+    
+    function loadGroupCollapseState() {
+        try {
+            const saved = localStorage.getItem(GROUP_COLLAPSE_STORAGE_KEY);
+            if (saved) {
+                collapsedGroups = JSON.parse(saved);
+            } else {
+                // If no saved state, initialize all groups as collapsed by default
+                collapsedGroups = {};
+                groups.forEach(g => {
+                    if (g.id !== ROOT_GROUP_ID && g.id !== UNGROUPED_GROUP_ID) {
+                        collapsedGroups[g.id] = true;
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load group collapse state:', error);
+            // Fallback: initialize all groups as collapsed
+            collapsedGroups = {};
+            groups.forEach(g => {
+                if (g.id !== ROOT_GROUP_ID && g.id !== UNGROUPED_GROUP_ID) {
+                    collapsedGroups[g.id] = true;
+                }
+            });
+        }
+    }
+    
+    function saveGroupCollapseState() {
+        try {
+            localStorage.setItem(GROUP_COLLAPSE_STORAGE_KEY, JSON.stringify(collapsedGroups));
+        } catch (error) {
+            console.error('Failed to save group collapse state:', error);
+        }
+    }
+
+    function renderGroupTree() {
+        const tree = document.getElementById('groupTree');
+        const hint = document.getElementById('groupEmptyHint');
+        if (!tree) return;
+        tree.innerHTML = '';
+
+        const topGroups = [];
+        const root = getGroupById(ROOT_GROUP_ID);
+        const ungrouped = getGroupById(UNGROUPED_GROUP_ID);
+        if (root) topGroups.push(root);
+        if (ungrouped) topGroups.push(ungrouped);
+        getTopLevelCustomGroups().forEach(g => topGroups.push(g));
+        topGroups.forEach(group => {
+            tree.appendChild(createGroupNode(group, 0));
+        });
+        const hasCustomGroup = groups.some(g => ![ROOT_GROUP_ID, UNGROUPED_GROUP_ID].includes(g.id));
+        if (hint) {
+            hint.style.display = hasCustomGroup ? 'none' : 'block';
+        }
+    }
+
+    function createGroupNode(group, depth = 0) {
+        const li = document.createElement('li');
+        const item = document.createElement('div');
+        item.className = 'group-item' + (selectedGroupId === group.id ? ' active' : '');
+        item.dataset.groupId = group.id;
+        item.style.paddingLeft = `${10 + depth * 12}px`;
+        const children = groups.filter(g => g.parentId === group.id);
+        const hasChildren = children.length > 0;
+
+        const toggle = document.createElement('span');
+        const toggleClasses = ['group-toggle'];
+        if (!hasChildren) toggleClasses.push('placeholder');
+        if (collapsedGroups[group.id]) toggleClasses.push('collapsed');
+        toggle.className = toggleClasses.join(' ');
+        toggle.textContent = hasChildren ? (collapsedGroups[group.id] ? '▸' : '▾') : '';
+        if (!hasChildren) {
+            toggle.setAttribute('aria-hidden', 'true');
+        } else {
+            toggle.removeAttribute('aria-hidden');
+        }
+        if (hasChildren) {
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                collapsedGroups[group.id] = !collapsedGroups[group.id];
+                saveGroupCollapseState();  // Save state to localStorage
+                renderGroupTree();
+            });
+        }
+
+        const name = document.createElement('span');
+        name.className = 'group-name';
+        name.textContent = group.name;
+        
+        // Add mailbox count display if count is available
+        // Hide count for parent groups that have child groups (except "所有分组" and "未分组")
+        const shouldShowCount = group.mailboxCount !== undefined && 
+                                group.mailboxCount !== null && 
+                                (!hasChildren || group.id === ROOT_GROUP_ID || group.id === UNGROUPED_GROUP_ID);
+        
+        if (shouldShowCount) {
+            const count = document.createElement('span');
+            count.className = 'group-count';
+            count.textContent = ` (${group.mailboxCount})`;
+            count.style.color = '#64748b';
+            count.style.fontSize = '0.9em';
+            count.style.marginLeft = '4px';
+            name.appendChild(count);
+        }
+
+        item.appendChild(toggle);
+        item.appendChild(name);
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setSelectedGroup(group.id);
+        });
+        if (hasChildren) {
+            item.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                collapsedGroups[group.id] = !collapsedGroups[group.id];
+                saveGroupCollapseState();  // Save state to localStorage
+                renderGroupTree();
+            });
+        }
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showGroupContextMenu(e, group.id);
+        });
+        li.appendChild(item);
+
+        if (hasChildren) {
+            const ul = document.createElement('ul');
+            ul.className = 'group-children';
+            if (collapsedGroups[group.id]) {
+                ul.style.display = 'none';
+            }
+            children.forEach(child => ul.appendChild(createGroupNode(child, depth + 1)));
+            li.appendChild(ul);
+        }
+
+        return li;
+    }
+
+    function setSelectedGroup(groupId) {
+        selectedGroupId = groupId || ROOT_GROUP_ID;
+        renderGroupTree();
+        renderMailboxView(1);
+    }
+
+    function bindGroupPanelEvents() {
+        const panel = document.getElementById('groupPanel');
+        if (!panel) return;
+        panel.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.group-item')) return;
+            e.preventDefault();
+            showGroupContextMenu(e, null);
+        });
+        document.addEventListener('click', hideGroupContextMenu);
+        window.addEventListener('resize', hideGroupContextMenu);
+    }
+
+    function showGroupContextMenu(event, groupId = null) {
+        const menu = document.getElementById('groupContextMenu');
+        if (!menu) return;
+        contextTargetGroupId = groupId;
+        menu.style.display = 'block';
+        menu.style.left = `${event.pageX}px`;
+        menu.style.top = `${event.pageY}px`;
+
+        const isProtected = !groupId || groupId === ROOT_GROUP_ID || groupId === UNGROUPED_GROUP_ID;
+        menu.querySelector('[data-action="add"]').disabled = false;
+        menu.querySelector('[data-action="add-child"]').disabled = isProtected;
+        menu.querySelector('[data-action="edit"]').disabled = isProtected;
+        menu.querySelector('[data-action="delete"]').disabled = isProtected;
+    }
+
+    function hideGroupContextMenu() {
+        const menu = document.getElementById('groupContextMenu');
+        if (menu) {
+            menu.style.display = 'none';
+        }
+    }
+
+    const groupContextElement = document.getElementById('groupContextMenu');
+    if (groupContextElement) {
+        groupContextElement.addEventListener('click', (e) => {
+            const action = e.target.getAttribute('data-action');
+            if (!action) return;
+            e.stopPropagation();
+            handleGroupAction(action);
+            hideGroupContextMenu();
+        });
+    }
+
+    function handleGroupAction(action) {
+        const target = contextTargetGroupId;
+        if (action === 'add') {
+            openGroupModal('add', null, null);
+        } else if (action === 'add-child' && target) {
+            openGroupModal('add', target, null);
+        } else if (action === 'edit' && target) {
+            openGroupModal('edit', getGroupById(target)?.parentId, target);
+        } else if (action === 'delete' && target) {
+            deleteGroup(target);
+        }
+    }
+
+    function openGroupModal(mode = 'add', parentId = null, groupId = null) {
+        groupFormMode = mode;
+        groupModalParentId = parentId || null;
+        groupModalEditId = groupId;
+        const modal = document.getElementById('groupModal');
+        document.getElementById('groupModalTitle').textContent = mode === 'edit' ? '编辑分组' : '添加分组';
+        document.getElementById('groupParentName').value = groupModalParentId ? (getGroupById(groupModalParentId)?.name || '') : TOP_LEVEL_LABEL;
+        document.getElementById('groupNameInput').value = mode === 'edit' && groupId ? (getGroupById(groupId)?.name || '') : '';
+        modal.classList.add('show');
+    }
+
+    function closeGroupModal() {
+        const modal = document.getElementById('groupModal');
+        document.getElementById('groupNameInput').value = '';
+        modal.classList.remove('show');
+    }
+
+    async function submitGroupForm() {
+        const name = document.getElementById('groupNameInput').value.trim();
+        if (!name) {
+            showToast('请填写分组名称', 'error');
+            return;
+        }
+        
+        try {
+            if (groupFormMode === 'edit' && groupModalEditId) {
+                // Update existing group via API
+                const response = await fetch('/admin/api/mailbox-groups', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'update',
+                        id: groupModalEditId,
+                        name: name
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Update local data
+                    const target = getGroupById(groupModalEditId);
+                    if (target) {
+                        target.name = name;
+                    }
+                    showToast('分组更新成功', 'success');
+                } else {
+                    showToast(data.message || '分组更新失败', 'error');
+                    return;
+                }
+            } else {
+                // Add new group via API
+                const response = await fetch('/admin/api/mailbox-groups', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'add',
+                        name: name,
+                        parent_id: groupModalParentId || null,
+                        sort_order: 0
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Add to local groups array
+                    const newGroup = { 
+                        id: data.group_id, 
+                        name: name, 
+                        parentId: groupModalParentId || null,
+                        parent_id: groupModalParentId || null
+                    };
+                    groups.push(newGroup);
+                    selectedGroupId = newGroup.id;
+                    recalculateGroupCounts();  // Recalculate counts after group creation
+                    showToast('分组添加成功', 'success');
+                } else {
+                    showToast(data.message || '分组添加失败', 'error');
+                    return;
+                }
+            }
+            
+            renderGroupTree();
+            refreshGroupSelects();
+            renderMailboxView(1);
+            closeGroupModal();
+        } catch (error) {
+            console.error('提交分组失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+
+    async function deleteGroup(groupId) {
+        if (!groupId || groupId === ROOT_GROUP_ID || groupId === UNGROUPED_GROUP_ID) return;
+        if (!confirm('确定要删除该分组及其子分组吗？')) return;
+        
+        try {
+            const response = await fetch('/admin/api/mailbox-groups', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id: groupId
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Remove from local groups - CASCADE on server will handle children
+                const idsToRemove = [];
+                const collect = (id) => {
+                    idsToRemove.push(id);
+                    groups.filter(g => g.parentId === id).forEach(child => collect(child.id));
+                };
+                collect(groupId);
+                groups = groups.filter(g => !idsToRemove.includes(g.id));
+                
+                // Clear mailbox group mappings for deleted groups
+                Object.keys(mailboxGroupMap).forEach(key => {
+                    if (idsToRemove.includes(mailboxGroupMap[key])) {
+                        delete mailboxGroupMap[key];
+                    }
+                });
+                mailboxGroupMappings = mailboxGroupMappings.filter(mapping => !idsToRemove.includes(mapping.group_id ?? mapping.groupId));
+                
+                selectedGroupId = ROOT_GROUP_ID;
+                recalculateGroupCounts();  // Recalculate counts after group deletion
+                renderGroupTree();
+                refreshGroupSelects();
+                renderMailboxView(1);
+                showToast('分组删除成功', 'success');
+            } else {
+                showToast(data.message || '分组删除失败', 'error');
+            }
+        } catch (error) {
+            console.error('删除分组失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+
+    async function assignGroupForEmail(email, groupId) {
+        if (!email) return;
+        
+        // Find mailbox by email
+        const mailbox = mailboxData.find(m => m.email === email);
+        if (!mailbox) {
+            console.error('Mailbox not found for email:', email);
+            return;
+        }
+        const mailboxId = mailbox.id;
+        
+        try {
+            const response = await fetch('/admin/api/mailbox-groups', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'assign',
+                    mailbox_id: mailbox.id,
+                    group_id: groupId || null
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Update local mapping
+                if (!groupId || groupId === UNGROUPED_GROUP_ID) {
+                    delete mailboxGroupMap[email];
+                    delete mailboxGroupMap[mailboxId];
+                    mailboxGroupMappings = mailboxGroupMappings.filter(m => (m.mailbox_id ?? m.mailboxId) !== mailboxId);
+                } else {
+                    mailboxGroupMap[mailboxId] = groupId;
+                    mailboxGroupMap[email] = groupId;
+                    mailboxGroupMappings = mailboxGroupMappings.filter(m => (m.mailbox_id ?? m.mailboxId) !== mailboxId);
+                    mailboxGroupMappings.push({ mailbox_id: mailboxId, group_id: groupId });
+                }
+                // Recalculate and refresh group counts
+                recalculateGroupCounts();
+                renderGroupTree();
+            } else {
+                showToast(data.message || '分组分配失败', 'error');
+            }
+        } catch (error) {
+            console.error('分配分组失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+
+    async function applyBatchGroupAssignments(content, groupId) {
+        if (!content) return;
+        const lines = content.split('\n');
+        const emails = [];
+        
+        // Parse all email lines first
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.includes('----')) return;
+            const email = trimmed.split('----')[0].trim();
+            if (email) {
+                emails.push(email);
+            }
+        });
+        
+        // Process in batches to avoid overwhelming the server
+        const BATCH_SIZE = 10; // Process 10 assignments at a time
+        for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+            const batch = emails.slice(i, i + BATCH_SIZE);
+            const batchPromises = batch.map(email => assignGroupForEmail(email, groupId));
+            
+            // Use allSettled to continue even if some fail
+            await Promise.allSettled(batchPromises);
+            
+            // Small delay between batches to avoid rate limiting
+            if (i + BATCH_SIZE < emails.length) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+    }
+
+    function removeGroupMappingByIds(ids = []) {
+        if (!ids.length) return;
+        const idSet = new Set(ids.map(i => parseInt(i, 10)));
+        // Update local mapping cache - actual deletion happens on server side via CASCADE
+        // CASCADE is configured in init.sql: mailbox_group_mappings has ON DELETE CASCADE
+        mailboxData.forEach(item => {
+            if (idSet.has(item.id)) {
+                if (mailboxGroupMap[item.email]) {
+                    delete mailboxGroupMap[item.email];
+                }
+                if (mailboxGroupMap[item.id]) {
+                    delete mailboxGroupMap[item.id];
+                }
+            }
+        });
+        mailboxGroupMappings = mailboxGroupMappings.filter(m => !idSet.has(m.mailbox_id ?? m.mailboxId));
+        // No need to persist - mappings are deleted on server when mailbox is deleted (CASCADE)
+    }
+    
+    // 清除邮箱搜索
+    function clearMailboxSearch() {
+        document.getElementById('searchInput').value = '';
+        loadMailboxes(1, '');
+    }
+    
+    // 搜索邮箱
+    function searchMailboxes() {
+        const search = document.getElementById('searchInput').value.trim();
+        loadMailboxes(1, search);
+    }
+    
+    // 改变每页显示数量
+    function changePerPage() {
+        perPage = parseInt(document.getElementById('perPageSelect').value, 10);
+        renderMailboxView(1);
+    }
+
+    function loadReceiveStore() {
+        try {
+            const raw = localStorage.getItem(RECEIVE_STORE_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            console.error('读取收件缓存失败:', e);
+            return {};
+        }
+    }
+
+    function saveReceiveStore(store) {
+        try {
+            localStorage.setItem(RECEIVE_STORE_KEY, JSON.stringify(store));
+        } catch (e) {
+            console.error('保存收件缓存失败:', e);
+        }
+    }
+
+    function updateReceiveTabActive() {
+        document.querySelectorAll('.receive-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.folder === receiveState.folder);
+        });
+    }
+
+    function openReceiveModal(mailboxId) {
+        receiveState.mailboxId = mailboxId;
+        receiveState.folder = 'inbox';
+        receiveState.page = 1;
+        receiveState.perPage = 100;
+        receiveState.activeMail = null;
+        const store = loadReceiveStore();
+        receiveState.mails = store[mailboxId] || [];
+        const mailbox = mailboxData.find(item => item.id === mailboxId);
+        const label = document.getElementById('receiveMailboxLabel');
+        if (label) {
+            label.textContent = mailbox ? mailbox.email : `ID ${mailboxId}`;
+        }
+        document.getElementById('receiveModal').classList.add('show');
+        updateReceiveTabActive();
+        // Removed status text display - only use Toast notifications per requirements
+        renderReceiveView();
+    }
+
+    function closeReceiveModal() {
+        document.getElementById('receiveModal').classList.remove('show');
+        receiveState.activeMail = null;
+    }
+
+    function switchReceiveFolder(folder) {
+        receiveState.folder = folder;
+        receiveState.page = 1;
+        receiveState.activeMail = null;
+        updateReceiveTabActive();
+        renderReceiveView();
+    }
+
+    function changeReceivePerPage() {
+        const select = document.getElementById('receivePerPageSelect');
+        receiveState.perPage = parseInt(select.value, 10) || 100;
+        receiveState.page = 1;
+        renderReceiveView();
+    }
+
+    function generateRandomMailCount() {
+        return Math.floor(Math.random() * RECEIVE_RANDOM_RANGE) + RECEIVE_MIN_MAILS;
+    }
+
+    function determineMailFolder(index) {
+        return (index + 1) % RECEIVE_TRASH_DIVISOR === 0 ? 'trash' : 'inbox';
+    }
+
+    // Utility function to generate unique IDs
+    function generateUniqueId() {
+        // Use crypto.randomUUID() if available, otherwise simple timestamp+random
+        return (typeof crypto !== 'undefined' && crypto.randomUUID) 
+            ? crypto.randomUUID()
+            : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+    }
+
+    // Constants for email fetching
+    const MAX_EMAIL_FETCH_ATTEMPTS = 50;
+    const RECEIVE_TABLE_COLUMNS = 5; // Number of columns in receive table: 序号, 标题, 发件人, 收件人, 时间
+    const EMAIL_FETCH_DELAY_MS = 100; // Delay between email fetch requests in milliseconds
+    const MAX_EMAILS_PER_FOLDER = 200; // Maximum emails to fetch per folder (inbox/spam) - not currently used
+    const MAX_CONSECUTIVE_DUPLICATES = 3; // Stop fetching if this many consecutive duplicates are found
+
+    function appendConnectionInfo(message, proxyData, connectionType) {
+        const text = message || '';
+        const hasConnectionInfo = /\(直连\)|\(代理\)/.test(text);
+        if (hasConnectionInfo) return text;
+
+        const useProxy = connectionType === 'proxy' || (proxyData && proxyData.enabled);
+        return `${text} ${useProxy ? '(代理)' : '(直连)'}`;
+    }
+    
+    async function fetchMailboxMails() {
+        if (!receiveState.mailboxId) return;
+        const mailbox = mailboxData.find(item => item.id === receiveState.mailboxId);
+        if (!mailbox) {
+            showToast('未找到邮箱信息', 'error');
+            return;
+        }
+        
+        // Get custom email count from input (default 10, max 100)
+        const emailCountInput = document.getElementById('emailCountInput');
+        const emailLimit = emailCountInput ? Math.min(Math.max(parseInt(emailCountInput.value) || 10, 1), 100) : 10;
+        
+        // Show loading toast that persists - will be manually removed on completion
+        const loadingToastId = showToast('正在收取邮件，请稍候...', 'info', 0); // 0 duration = persistent
+        
+        const store = loadReceiveStore();
+        let allMails = store[receiveState.mailboxId] || [];
+        let newMailsCount = 0;
+        
+        try {
+            // Fetch emails using the custom limit
+            const response = await fetch('/api/get_mail', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: mailbox.email,
+                    admin_access: true,  // Admin access from mailbox management
+                    email_index: 0,      // Start from latest
+                    email_limit: emailLimit  // Use custom email limit
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Handle both single email (backward compatibility) and multiple emails response
+                const fetchedMails = data.mails || (data.mail ? [data.mail] : []);
+                const connectionType = data.connection;
+                const proxyInfo = data.proxy;
+                
+                // Process each fetched mail
+                for (const mailData of fetchedMails) {
+                    // Create a mail object from the fetched data
+                    const mail = {
+                        id: `${receiveState.mailboxId}-${generateUniqueId()}`,
+                        mailboxId: receiveState.mailboxId,
+                        subject: mailData.subject || '(无主题)',
+                        from: mailData.from || 'unknown@example.com',
+                        to: mailData.to || mailbox.email,
+                        receivedAt: mailData.date || new Date().toISOString(),
+                        folder: mailData.folder || 'inbox',
+                        body: mailData.body || '',
+                        bodyType: mailData.body_type || 'text',
+                        images: mailData.images || [],
+                        attachments: mailData.attachments || []
+                    };
+                    
+                    // Check if this mail already exists (by subject, from, and date to avoid duplicates)
+                    const isDuplicate = allMails.some(m => 
+                        m.subject === mail.subject && 
+                        m.from === mail.from &&
+                        m.receivedAt === mail.receivedAt
+                    );
+                    
+                    if (!isDuplicate) {
+                        allMails.push(mail);
+                        newMailsCount++;
+                    }
+                }
+                
+                // Sort all emails from newest to oldest by receivedAt per requirements
+                allMails.sort((a, b) => {
+                    const dateA = new Date(a.receivedAt);
+                    const dateB = new Date(b.receivedAt);
+                    return dateB - dateA; // Newest first
+                });
+                
+                // Save all mails to store
+                store[receiveState.mailboxId] = allMails;
+                saveReceiveStore(store);
+                
+                receiveState.mails = allMails;
+                receiveState.page = 1;
+                receiveState.activeMail = null;
+                
+                // Remove loading toast
+                removeToast(loadingToastId);
+                
+                if (newMailsCount > 0) {
+                    // Only use Toast notification - removed on-page status per requirements
+                    showToast(
+                        appendConnectionInfo(`成功收取 ${newMailsCount} 封新邮件`, proxyInfo, connectionType),
+                        'success'
+                    );
+                } else if (fetchedMails.length > 0) {
+                    // We fetched emails but they were all duplicates
+                    showToast(
+                        appendConnectionInfo('所有邮件已存在，未发现新邮件', proxyInfo, connectionType),
+                        'info'
+                    );
+                } else {
+                    // No emails found
+                    showToast(
+                        appendConnectionInfo('邮箱中暂无新邮件', proxyInfo, connectionType),
+                        'info'
+                    );
+                }
+                
+                // Auto-refresh the list view immediately after fetching per requirements
+                renderReceiveView();
+            } else {
+                // Remove loading toast
+                removeToast(loadingToastId);
+                // Error occurred
+                const errorMessage = appendConnectionInfo(data.message || '获取邮件失败', data.proxy, data.connection);
+                showToast(errorMessage, 'error');
+            }
+        } catch (error) {
+            console.error('收取邮件出错:', error);
+            // Remove loading toast
+            removeToast(loadingToastId);
+            // Only use Toast notification - removed on-page status per requirements
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+
+    function updateReceiveStatus(text) {
+        const el = document.getElementById('receiveStatus');
+        if (el) {
+            el.textContent = text;
+        }
+    }
+
+    function renderReceiveView() {
+        if (receiveState.activeMail) {
+            renderReceiveDetail(receiveState.activeMail);
+        } else {
+            renderReceiveList();
+        }
+    }
+
+    function setReceiveView(showDetail) {
+        const listView = document.getElementById('receiveListView');
+        const detailView = document.getElementById('receiveDetailView');
+        if (listView && detailView) {
+            listView.style.display = showDetail ? 'none' : 'block';
+            detailView.style.display = showDetail ? 'block' : 'none';
+            const pagination = document.getElementById('receivePagination');
+            if (pagination) {
+                pagination.classList.toggle('is-hidden', showDetail);
+            }
+        }
+    }
+
+    function renderReceiveList() {
+        setReceiveView(false);
+
+        const perPageSelect = document.getElementById('receivePerPageSelect');
+        if (perPageSelect) {
+            perPageSelect.value = receiveState.perPage;
+        }
+
+        const filtered = receiveState.mails.filter(mail => mail.folder === receiveState.folder);
+        const totalPages = Math.max(1, Math.ceil(filtered.length / receiveState.perPage));
+        receiveState.page = Math.min(receiveState.page, totalPages);
+        const start = (receiveState.page - 1) * receiveState.perPage;
+        const pageData = filtered.slice(start, start + receiveState.perPage);
+
+        const tbody = document.getElementById('receiveTableBody');
+        if (tbody) {
+            tbody.innerHTML = '';
+            if (pageData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${RECEIVE_TABLE_COLUMNS}" class="receive-empty">暂无邮件</td></tr>`;
+            } else {
+                pageData.forEach((mail, index) => {
+                    const serialNumber = start + index + 1;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${serialNumber}</td>
+                        <td>${escapeHtml(mail.subject || '（无主题）')}</td>
+                        <td>${escapeHtml(mail.from || '-')}</td>
+                        <td>${escapeHtml(mail.to || '-')}</td>
+                        <td>${formatDateTime(mail.receivedAt)}</td>
+                    `;
+                    row.addEventListener('click', () => openReceiveDetail(mail.id));
+                    tbody.appendChild(row);
+                });
+            }
+        }
+
+        renderReceivePagination(totalPages, filtered.length);
+    }
+
+    function renderReceivePagination(totalPages, totalCount) {
+        const container = document.getElementById('receivePagination');
+        if (!container) return;
+        let html = `<div class="pagination-info">共 ${totalCount} 封邮件，第 ${receiveState.page} / ${totalPages} 页</div>`;
+        
+        // Add per-page selector after the pagination info
+        html += `<div class="page-size-control">
+            <label for="receivePerPageSelect">每页</label>
+            <select id="receivePerPageSelect" onchange="changeReceivePerPage()">
+                <option value="100" ${receiveState.perPage === 100 ? 'selected' : ''}>100条</option>
+                <option value="150" ${receiveState.perPage === 150 ? 'selected' : ''}>150条</option>
+                <option value="200" ${receiveState.perPage === 200 ? 'selected' : ''}>200条</option>
+                <option value="300" ${receiveState.perPage === 300 ? 'selected' : ''}>300条</option>
+            </select>
+        </div>`;
+        
+        if (totalPages > 1) {
+            html += '<div class="pagination-buttons">';
+            if (receiveState.page > 1) {
+                html += `<button class="page-btn" onclick="gotoReceivePage(${receiveState.page - 1})">« 上一页</button>`;
+            }
+            let startPage = Math.max(1, receiveState.page - 2);
+            let endPage = Math.min(totalPages, receiveState.page + 2);
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="gotoReceivePage(1)">1</button>`;
+                if (startPage > 2) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+            }
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === receiveState.page ? 'active' : '';
+                html += `<button class="page-btn ${activeClass}" onclick="gotoReceivePage(${i})">${i}</button>`;
+            }
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+                html += `<button class="page-btn" onclick="gotoReceivePage(${totalPages})">${totalPages}</button>`;
+            }
+            if (receiveState.page < totalPages) {
+                html += `<button class="page-btn" onclick="gotoReceivePage(${receiveState.page + 1})">下一页 »</button>`;
+            }
+            html += '</div>';
+        }
+        container.innerHTML = html;
+    }
+
+    function gotoReceivePage(page) {
+        receiveState.page = page;
+        renderReceiveView();
+    }
+
+    function openReceiveDetail(mailId) {
+        const mail = receiveState.mails.find(item => item.id === mailId);
+        if (!mail) return;
+        receiveState.activeMail = mail;
+        renderReceiveDetail(mail);
+    }
+
+    function renderReceiveDetail(mail) {
+        setReceiveView(true);
+        document.getElementById('receiveDetailSubject').textContent = mail.subject || '（无主题）';
+        document.getElementById('receiveDetailMeta').innerHTML = `
+            <div>发件人：${escapeHtml(mail.from || '-')}</div>
+            <div>收件人：${escapeHtml(mail.to || '-')}</div>
+            <div>时间：${formatDateTime(mail.receivedAt)}</div>
+            <div>所属：${mail.folder === 'trash' ? '垃圾箱' : '收件箱'}</div>
+        `;
+        const body = document.getElementById('receiveDetailBody');
+        if (body) {
+            if (mail.bodyType === 'html') {
+                // Display HTML emails
+                // Note: In admin context, emails are fetched from trusted sources
+                // For production, consider adding DOMPurify for HTML sanitization
+                body.innerHTML = mail.body || '（无正文）';
+                body.style.whiteSpace = 'normal';
+            } else {
+                // Display text emails
+                body.textContent = mail.body || '（无正文）';
+                body.style.whiteSpace = 'pre-line';
+            }
+        }
+        // Display images (matching frontend inbox page behavior)
+        const imagesSection = document.getElementById('receiveDetailImages');
+        const imageContainer = document.getElementById('receiveDetailImageContainer');
+        if (imagesSection && imageContainer) {
+            const images = mail.images || [];
+            const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml'];
+            const validImages = images.filter(image => allowedMimeTypes.includes(image.mime_type));
+            if (validImages.length > 0) {
+                imageContainer.innerHTML = '';
+                validImages.forEach((image) => {
+                    const imageItem = document.createElement('div');
+                    imageItem.style.cssText = 'text-align:center; border:1px solid #e5e7eb; border-radius:6px; padding:6px; background:#fff;';
+                    const img = document.createElement('img');
+                    const dataUri = 'data:' + image.mime_type + ';base64,' + image.content;
+                    img.src = dataUri;
+                    img.alt = image.filename || 'image';
+                    img.style.cssText = 'max-width:200px; max-height:200px; display:block; cursor:pointer;';
+                    img.onclick = () => {
+                        try {
+                            const byteChars = atob(image.content);
+                            const byteNums = new Uint8Array(byteChars.length);
+                            for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+                            const blob = new Blob([byteNums], { type: image.mime_type });
+                            const blobUrl = URL.createObjectURL(blob);
+                            const win = window.open(blobUrl, '_blank');
+                            if (win) win.addEventListener('unload', () => URL.revokeObjectURL(blobUrl));
+                        } catch (e) {
+                            console.error('打开图片失败:', e);
+                        }
+                    };
+                    const imageInfo = document.createElement('div');
+                    imageInfo.style.cssText = 'font-size:11px; color:#6b7280; margin-top:4px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+                    imageInfo.textContent = image.filename || 'image';
+                    imageItem.appendChild(img);
+                    imageItem.appendChild(imageInfo);
+                    imageContainer.appendChild(imageItem);
+                });
+                imagesSection.style.display = 'block';
+            } else {
+                imagesSection.style.display = 'none';
+            }
+        }
+    }
+
+    function backToReceiveList() {
+        receiveState.activeMail = null;
+        renderReceiveList();
+    }
+    
+    // 显示添加邮箱模态框
+    function showAddModal() {
+        document.getElementById('modalTitle').textContent = '添加邮箱';
+        document.getElementById('formAction').value = 'add';
+        document.getElementById('mailboxForm').reset();
+        document.getElementById('mailboxId').value = '';
+        document.getElementById('ssl').checked = true;
+        document.getElementById('sendSsl').checked = true;
+        document.getElementById('sendProtocol').value = 'smtp';
+        document.getElementById('sendPort').value = 465;
+        document.getElementById('sendServer').value = '';
+        document.getElementById('testBtn').style.display = 'inline-block';
+        document.getElementById('mailboxForm').dataset.originalEmail = '';
+        loadServerOptions();
+        const defaultGroup = (selectedGroupId && selectedGroupId !== ROOT_GROUP_ID) ? selectedGroupId : UNGROUPED_GROUP_ID;
+        refreshGroupSelects(defaultGroup, document.getElementById('batchGroupSelect')?.value || UNGROUPED_GROUP_ID);
+        updatePortByProtocol();
+        updateSendPortByProtocol();
+        document.getElementById('mailboxModal').classList.add('show');
+    }
+    
+    // 显示批量添加模态框
+    function showBatchAddModal() {
+        document.getElementById('batchAddForm').reset();
+        document.getElementById('batchSsl').checked = true;
+        document.getElementById('batchSendSsl').checked = true;
+        document.getElementById('batchSendProtocol').value = 'smtp';
+        document.getElementById('batchSendPort').value = 465;
+        document.getElementById('batchSendServer').value = '';
+        loadBatchServerOptions();
+        refreshGroupSelects(document.getElementById('groupSelect')?.value || UNGROUPED_GROUP_ID, selectedGroupId && selectedGroupId !== ROOT_GROUP_ID ? selectedGroupId : UNGROUPED_GROUP_ID);
+        updateBatchPortByProtocol();
+        updateBatchSendPortByProtocol();
+        document.getElementById('batchAddModal').classList.add('show');
+    }
+    
+    // 显示服务器管理模态框
+    function showServerModal() {
+        document.getElementById('serverForm').reset();
+        document.getElementById('serverId').value = '';
+        document.getElementById('serverAction').value = 'add';
+        document.getElementById('serverSaveText').textContent = '添加服务器';
+        // 重置隐藏字段为默认值
+        document.getElementById('defaultPortImap').value = '993';
+        document.getElementById('defaultPortPop3').value = '995';
+        document.getElementById('serverSslEnabled').value = 'true';
+        document.getElementById('serverRemarks').value = '';
+        document.getElementById('sendServerAddress').value = '';
+        loadServerList();
+        document.getElementById('serverModal').classList.add('show');
+    }
+    
+    // 编辑邮箱
+    async function editMailbox(id) {
+        try {
+            const response = await fetch(`/admin/api/mailbox?id=${id}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const mailbox = data.data;
+                document.getElementById('modalTitle').textContent = '编辑邮箱';
+                document.getElementById('formAction').value = 'edit';
+                document.getElementById('mailboxId').value = mailbox.id;
+                document.getElementById('email').value = mailbox.email;
+                document.getElementById('password').value = mailbox.password;
+                document.getElementById('server').value = mailbox.server;
+                document.getElementById('port').value = mailbox.port;
+                document.getElementById('protocol').value = mailbox.protocol;
+                document.getElementById('ssl').checked = mailbox.ssl;
+                document.getElementById('sendServer').value = mailbox.send_server || mailbox.server;
+                document.getElementById('sendPort').value = mailbox.send_port || mailbox.port;
+                document.getElementById('sendProtocol').value = mailbox.send_protocol || 'smtp';
+                document.getElementById('sendSsl').checked = mailbox.send_ssl !== undefined ? mailbox.send_ssl : mailbox.ssl;
+                document.getElementById('remarks').value = mailbox.remarks || '';
+                document.getElementById('testBtn').style.display = 'inline-block';
+                document.getElementById('mailboxForm').dataset.originalEmail = mailbox.email || '';
+                const currentGroupId = mailboxGroupMap[mailbox.id] ?? mailboxGroupMap[mailbox.email] ?? UNGROUPED_GROUP_ID;
+                refreshGroupSelects(currentGroupId, document.getElementById('batchGroupSelect')?.value || UNGROUPED_GROUP_ID);
+                document.getElementById('groupSelect').value = currentGroupId;
+                loadServerOptions();
+                document.getElementById('mailboxModal').classList.add('show');
+            } else {
+                showToast(data.message || '获取邮箱信息失败', 'error');
+            }
+        } catch (error) {
+            console.error('获取邮箱信息失败:', error);
+            showToast('获取邮箱信息失败', 'error');
+        }
+    }
+    
+    // 测试邮箱连接
+    async function testMailbox(id = null) {
+        const targetId = id || document.getElementById('mailboxId').value;
+        
+        if (!targetId) {
+            // 如果没有ID，使用当前表单数据进行测试
+            const form = document.getElementById('mailboxForm');
+            const formData = new FormData(form);
+            
+            const testData = {
+                action: 'test_new',
+                email: formData.get('email'),
+                password: formData.get('password'),
+                server: formData.get('server'),
+                port: parseInt(formData.get('port'), 10),
+                protocol: formData.get('protocol'),
+                ssl: formData.get('ssl') === 'on',
+                send_server: formData.get('send_server'),
+                send_port: parseInt(formData.get('send_port'), 10),
+                send_protocol: formData.get('send_protocol'),
+                send_ssl: formData.get('send_ssl') === 'on'
+            };
+            
+            // 验证必填字段
+            if (!testData.email || !testData.password || !testData.server || !testData.port) {
+                showToast('请填写完整的邮箱信息后再测试', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/api/mailbox', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('邮箱连接测试成功', 'success');
+                } else {
+                    showToast(data.message || '邮箱连接测试失败', 'error');
+                }
+            } catch (error) {
+                console.error('测试邮箱失败:', error);
+                showToast('网络错误，请稍后重试', 'error');
+            }
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/api/mailbox', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    action: 'test',
+                    id: parseInt(targetId, 10)
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast('邮箱连接测试成功', 'success');
+            } else {
+                showToast(data.message || '邮箱连接测试失败', 'error');
+            }
+        } catch (error) {
+            console.error('测试邮箱失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 发件
+    async function sendMailNow() {
+        const mailboxId = document.getElementById('sendMailboxId').value;
+        const nickname = document.getElementById('sendNickname').value.trim();
+        const to = document.getElementById('sendTo').value.trim();
+        const subject = document.getElementById('sendSubject').value.trim();
+        const content = document.getElementById('sendContent').value;
+        
+        if (!mailboxId || !to) {
+            showToast('请填写收件人地址', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/api/mailbox', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'send_mail',
+                    id: parseInt(mailboxId, 10),
+                    to: to,
+                    nickname: nickname,
+                    subject: subject,
+                    content: content
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                const successMessage = appendConnectionInfo(
+                    data.message || '发送成功',
+                    data.proxy,
+                    data.connection
+                );
+                showToast(successMessage, 'success');
+                closeSendModal();
+            } else {
+                const errorMessage = appendConnectionInfo(
+                    data.message || '发送失败',
+                    data.proxy,
+                    data.connection
+                );
+                showToast(errorMessage, 'error');
+            }
+        } catch (error) {
+            console.error('发送失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 删除邮箱
+    async function deleteMailbox(id) {
+        if (!confirm('确定要删除这个邮箱账号吗？')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/api/mailbox', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: id })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                removeGroupMappingByIds([id]);
+                showToast('邮箱删除成功', 'success');
+                loadMailboxes(currentPage, searchQuery);
+            } else {
+                showToast(data.message || '删除失败', 'error');
+            }
+        } catch (error) {
+            console.error('删除邮箱失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 保存邮箱
+    async function saveMailbox() {
+        const form = document.getElementById('mailboxForm');
+        const formData = new FormData(form);
+        
+        // Get the selected group ID and convert special values
+        const selectedGroupValue = document.getElementById('groupSelect').value;
+        let group_id = null;
+        
+        // Convert special string IDs to appropriate values
+        if (selectedGroupValue && selectedGroupValue !== ROOT_GROUP_ID && selectedGroupValue !== UNGROUPED_GROUP_ID) {
+            // It's a real group ID (numeric)
+            group_id = parseInt(selectedGroupValue, 10);
+            if (isNaN(group_id) || group_id <= 0) {
+                group_id = null;  // Invalid ID, treat as ungrouped
+            }
+        }
+        // If ROOT_GROUP_ID or UNGROUPED_GROUP_ID, group_id remains null
+        
+        const data = {
+            action: formData.get('action'),
+            email: formData.get('email'),
+            password: formData.get('password'),
+            server: formData.get('server'),
+            port: parseInt(formData.get('port'), 10),
+            protocol: formData.get('protocol'),
+            ssl: formData.get('ssl') === 'on',
+            send_server: formData.get('send_server'),
+            send_port: parseInt(formData.get('send_port'), 10),
+            send_protocol: formData.get('send_protocol'),
+            send_ssl: formData.get('send_ssl') === 'on',
+            remarks: formData.get('remarks') || '',
+            group_id: group_id
+        };
+        const originalEmail = document.getElementById('mailboxForm').dataset.originalEmail || '';
+        
+        if (data.action === 'edit') {
+            data.id = parseInt(formData.get('id'), 10);
+        }
+        
+        if (!data.email || !data.password || !data.server || !data.port || !data.send_server || !data.send_port) {
+            showToast('请填写完整的收/发件服务器信息', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/api/mailbox', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Update local mailbox group map
+                if (originalEmail && originalEmail !== data.email) {
+                    delete mailboxGroupMap[originalEmail];
+                }
+                const mailboxId = data.action === 'edit' ? data.id : null;
+                
+                // Update the mailboxGroupMap with the actual group ID (or remove if ungrouped)
+                if (group_id) {
+                    if (mailboxId) {
+                        mailboxGroupMap[mailboxId] = group_id;
+                        mailboxGroupMappings = mailboxGroupMappings.filter(m => (m.mailbox_id ?? m.mailboxId) !== mailboxId);
+                        mailboxGroupMappings.push({ mailbox_id: mailboxId, group_id: group_id });
+                    }
+                    mailboxGroupMap[data.email] = group_id;
+                } else {
+                    delete mailboxGroupMap[data.email];
+                    if (mailboxId) {
+                        delete mailboxGroupMap[mailboxId];
+                        mailboxGroupMappings = mailboxGroupMappings.filter(m => (m.mailbox_id ?? m.mailboxId) !== mailboxId);
+                    }
+                }
+                
+                showToast(result.message || '保存成功', 'success');
+                closeModal();
+                loadMailboxes(currentPage, searchQuery);
+            } else {
+                showToast(result.message || '保存失败', 'error');
+            }
+        } catch (error) {
+            console.error('保存邮箱失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 批量添加邮箱
+    async function saveBatchMailboxes() {
+        const form = document.getElementById('batchAddForm');
+        const formData = new FormData(form);
+        
+        // Get the selected group ID and convert special values
+        const batchGroupValue = document.getElementById('batchGroupSelect').value;
+        let group_id = null;
+        
+        // Convert special string IDs to appropriate values
+        if (batchGroupValue && batchGroupValue !== ROOT_GROUP_ID && batchGroupValue !== UNGROUPED_GROUP_ID) {
+            // It's a real group ID (numeric)
+            group_id = parseInt(batchGroupValue, 10);
+            if (isNaN(group_id) || group_id <= 0) {
+                group_id = null;  // Invalid ID, treat as ungrouped
+            }
+        }
+        // If ROOT_GROUP_ID or UNGROUPED_GROUP_ID, group_id remains null
+        
+        const data = {
+            action: 'batch_add',
+            batch_content: formData.get('batch_content'),
+            server: formData.get('server'),
+            port: parseInt(formData.get('port'), 10),
+            protocol: formData.get('protocol'),
+            ssl: formData.get('ssl') === 'on',
+            send_server: formData.get('send_server'),
+            send_port: parseInt(formData.get('send_port'), 10),
+            send_protocol: formData.get('send_protocol'),
+            send_ssl: formData.get('send_ssl') === 'on',
+            group_id: group_id
+        };
+        
+        if (!data.batch_content || !data.server || !data.port || !data.send_server || !data.send_port) {
+            showToast('请填写所有必需字段', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/api/mailbox', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Update local mailbox group map for all added emails
+                if (group_id) {
+                    const lines = data.batch_content.split('\n');
+                    for (const line of lines) {
+                        if (line.trim() && line.includes('----')) {
+                            const email = line.split('----')[0].trim();
+                            if (email) {
+                                mailboxGroupMap[email] = group_id;
+                            }
+                        }
+                    }
+                }
+                
+                showToast(result.message || '批量添加成功', 'success');
+                closeBatchAddModal();
+                loadMailboxes(currentPage, searchQuery);
+            } else {
+                showToast(result.message || '批量添加失败', 'error');
+            }
+        } catch (error) {
+            console.error('批量添加失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // ========== 选择管理功能 ==========
+    
+    // 全选/取消全选
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.mailbox-checkbox');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+            if (selectAll.checked) {
+                selectedMailboxes.add(parseInt(checkbox.value, 10));
+            } else {
+                selectedMailboxes.delete(parseInt(checkbox.value, 10));
+            }
+        });
+        
+        updateBatchDeleteButton();
+    }
+    
+    // 切换邮箱选择状态
+    function toggleMailboxSelection(id) {
+        if (selectedMailboxes.has(id)) {
+            selectedMailboxes.delete(id);
+        } else {
+            selectedMailboxes.add(id);
+        }
+        updateBatchDeleteButton();
+    }
+    
+    // 更新批量删除按钮状态
+    function updateBatchDeleteButton() {
+        const btn = document.getElementById('batchDeleteBtn');
+        if (selectedMailboxes.size > 0) {
+            btn.style.display = 'inline-block';
+            btn.textContent = `🗑️ 批量删除 (${selectedMailboxes.size})`;
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+    
+    // 批量删除邮箱
+    async function batchDeleteMailboxes() {
+        if (selectedMailboxes.size === 0) {
+            showToast('请选择要删除的邮箱', 'error');
+            return;
+        }
+        
+        if (!confirm(`确定要删除选中的 ${selectedMailboxes.size} 个邮箱账号吗？`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/api/mailbox', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    action: 'batch_delete',
+                    ids: Array.from(selectedMailboxes)
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                removeGroupMappingByIds(Array.from(selectedMailboxes));
+                showToast(data.message || '批量删除成功', 'success');
+                selectedMailboxes.clear();
+                loadMailboxes(currentPage, searchQuery);
+            } else {
+                showToast(data.message || '批量删除失败', 'error');
+            }
+        } catch (error) {
+            console.error('批量删除失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // ========== 服务器管理功能 ==========
+    
+    // 加载服务器列表
+    async function loadServers() {
+        try {
+            const response = await fetch('/admin/api/servers');
+            const data = await response.json();
+            
+            if (data.success) {
+                servers = data.data;
+                loadServerOptions();
+                loadBatchServerOptions();
+            }
+        } catch (error) {
+            console.error('加载服务器列表失败:', error);
+        }
+    }
+    
+    // 加载服务器选项到添加邮箱表单
+    function loadServerOptions() {
+        const select = document.getElementById('serverSelect');
+        select.innerHTML = '<option value="">选择已有服务器或手动输入</option>';
+        
+        servers.forEach(server => {
+            const option = document.createElement('option');
+            option.value = server.id;
+            option.textContent = `${server.server_name} (收:${server.server_address} / 发:${server.send_server_address || server.server_address})`;
+            select.appendChild(option);
+        });
+    }
+    
+    // 加载服务器选项到批量添加表单
+    function loadBatchServerOptions() {
+        const select = document.getElementById('batchServerSelect');
+        select.innerHTML = '<option value="">选择已有服务器或手动输入</option>';
+        
+        servers.forEach(server => {
+            const option = document.createElement('option');
+            option.value = server.id;
+            option.textContent = `${server.server_name} (收:${server.server_address} / 发:${server.send_server_address || server.server_address})`;
+            select.appendChild(option);
+        });
+    }
+    
+    // 选择服务器
+    function selectServer() {
+        const select = document.getElementById('serverSelect');
+        const serverId = select.value;
+        
+        if (serverId) {
+            const server = servers.find(s => s.id == serverId);
+            if (server) {
+                document.getElementById('server').value = server.server_address;
+                document.getElementById('ssl').checked = server.ssl_enabled;
+                document.getElementById('sendServer').value = server.send_server_address || server.server_address || '';
+                document.getElementById('sendProtocol').value = server.send_protocol || 'smtp';
+                document.getElementById('sendSsl').checked = server.send_ssl_enabled !== 0;
+                if (server.default_port_smtp) {
+                    document.getElementById('sendPort').value = server.default_port_smtp;
+                } else {
+                    updateSendPortByProtocol();
+                }
+                updatePortByProtocol();
+            }
+        }
+    }
+    
+    // 选择批量添加服务器
+    function selectBatchServer() {
+        const select = document.getElementById('batchServerSelect');
+        const serverId = select.value;
+        
+        if (serverId) {
+            const server = servers.find(s => s.id == serverId);
+            if (server) {
+                document.getElementById('batchServer').value = server.server_address;
+                document.getElementById('batchSsl').checked = server.ssl_enabled;
+                document.getElementById('batchSendServer').value = server.send_server_address || server.server_address || '';
+                document.getElementById('batchSendProtocol').value = server.send_protocol || 'smtp';
+                document.getElementById('batchSendSsl').checked = server.send_ssl_enabled !== 0;
+                if (server.default_port_smtp) {
+                    document.getElementById('batchSendPort').value = server.default_port_smtp;
+                } else {
+                    updateBatchSendPortByProtocol();
+                }
+                updateBatchPortByProtocol();
+            }
+        }
+    }
+    
+    // 根据协议更新端口
+    function updatePortByProtocol() {
+        const protocol = document.getElementById('protocol').value;
+        const ssl = document.getElementById('ssl').checked;
+        const portInput = document.getElementById('port');
+        
+        if (protocol === 'imap') {
+            portInput.value = ssl ? 993 : 143;
+        } else if (protocol === 'pop3') {
+            portInput.value = ssl ? 995 : 110;
+        }
+    }
+    
+    // 根据SSL更新端口
+    function updatePortBySSL() {
+        updatePortByProtocol();
+    }
+    
+    // 发件端口更新
+    function updateSendPortByProtocol() {
+        const protocol = document.getElementById('sendProtocol').value;
+        const ssl = document.getElementById('sendSsl').checked;
+        const portInput = document.getElementById('sendPort');
+        
+        if (protocol === 'smtp_starttls') {
+            portInput.value = 587;
+        } else {
+            portInput.value = ssl ? 465 : 25;
+        }
+    }
+    
+    function updateSendPortBySSL() {
+        updateSendPortByProtocol();
+    }
+    
+    // 根据协议更新批量添加端口
+    function updateBatchPortByProtocol() {
+        const protocol = document.getElementById('batchProtocol').value;
+        const ssl = document.getElementById('batchSsl').checked;
+        const portInput = document.getElementById('batchPort');
+        
+        if (protocol === 'imap') {
+            portInput.value = ssl ? 993 : 143;
+        } else if (protocol === 'pop3') {
+            portInput.value = ssl ? 995 : 110;
+        }
+    }
+    
+    // 根据SSL更新批量添加端口
+    function updateBatchPortBySSL() {
+        updateBatchPortByProtocol();
+    }
+    
+    function updateBatchSendPortByProtocol() {
+        const protocol = document.getElementById('batchSendProtocol').value;
+        const ssl = document.getElementById('batchSendSsl').checked;
+        const portInput = document.getElementById('batchSendPort');
+        
+        if (protocol === 'smtp_starttls') {
+            portInput.value = 587;
+        } else {
+            portInput.value = ssl ? 465 : 25;
+        }
+    }
+    
+    function updateBatchSendPortBySSL() {
+        updateBatchSendPortByProtocol();
+    }
+    
+    // 加载服务器管理列表
+    async function loadServerList() {
+        try {
+            const response = await fetch('/admin/api/servers');
+            const data = await response.json();
+            
+            if (data.success) {
+                renderServerList(data.data);
+            }
+        } catch (error) {
+            console.error('加载服务器列表失败:', error);
+        }
+    }
+    
+    // 渲染服务器列表 - 布局：序号ID，服务器名称，服务器地址
+    function renderServerList(serverList) {
+        const container = document.getElementById('serverList');
+        container.innerHTML = '';
+        
+        if (serverList.length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">暂无服务器配置</div>';
+            return;
+        }
+        
+        serverList.forEach((server, index) => {
+            const item = document.createElement('div');
+            item.className = 'server-item';
+            const rowNumber = index + 1;
+            item.innerHTML = `
+                <input type="checkbox" class="server-checkbox" value="${server.id}" onchange="toggleServerSelection(${server.id})" style="margin-right: 10px;">
+                <div class="server-info">
+                    <div class="server-id">序号: ${rowNumber}</div>
+                    <div class="server-name">${escapeHtml(server.server_name)}</div>
+                    <div class="server-address">收: ${escapeHtml(server.server_address)}</div>
+                    <div class="server-address">发: ${escapeHtml(server.send_server_address || server.server_address || '')}</div>
+                </div>
+                <div class="server-actions">
+                    <button class="btn btn-success btn-small" onclick="editServer(${server.id})">编辑</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteServer(${server.id})">删除</button>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+        
+        updateBatchDeleteServersButton();
+    }
+    
+    // 切换服务器选择状态
+    function toggleServerSelection(id) {
+        if (selectedServers.has(id)) {
+            selectedServers.delete(id);
+        } else {
+            selectedServers.add(id);
+        }
+        updateBatchDeleteServersButton();
+    }
+    
+    // 更新批量删除服务器按钮状态
+    function updateBatchDeleteServersButton() {
+        const btn = document.getElementById('batchDeleteServersBtn');
+        if (selectedServers.size > 0) {
+            btn.style.display = 'inline-block';
+            btn.textContent = `批量删除选中 (${selectedServers.size})`;
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+    
+    // 保存服务器
+    async function saveServer() {
+        const form = document.getElementById('serverForm');
+        const formData = new FormData(form);
+        const serverIdValue = formData.get('id');
+        const existingServer = serverIdValue ? servers.find(s => s.id == serverIdValue) : null;
+        const parsePortWithDefault = (value, fallback) => {
+            const parsed = parseInt(value, 10);
+            return isNaN(parsed) ? fallback : parsed;
+        };
+        const sendSslField = formData.get('send_ssl_enabled');
+        const sendProtocolField = formData.get('send_protocol');
+        const defaultSmtpField = formData.get('default_port_smtp');
+        
+        const data = {
+            action: formData.get('action'),
+            server_name: formData.get('server_name'),
+            server_address: formData.get('server_address'),
+            send_server_address: formData.get('send_server_address'),
+            default_port_imap: parsePortWithDefault(formData.get('default_port_imap'), existingServer?.default_port_imap || 993),
+            default_port_pop3: parsePortWithDefault(formData.get('default_port_pop3'), existingServer?.default_port_pop3 || 995),
+            default_port_smtp: parsePortWithDefault(defaultSmtpField, existingServer?.default_port_smtp || 465),
+            ssl_enabled: formData.get('ssl_enabled') === 'true',
+            send_ssl_enabled: sendSslField === null ? (existingServer ? !!existingServer.send_ssl_enabled : true) : sendSslField === 'true',
+            send_protocol: sendProtocolField || existingServer?.send_protocol || 'smtp',
+            remarks: formData.get('remarks')
+        };
+
+        if (!data.server_name || !data.server_address || !data.send_server_address) {
+            showToast('请填写完整的服务器信息', 'error');
+            return;
+        }
+        
+        if (data.action === 'edit') {
+            data.id = parseInt(formData.get('id'), 10);
+        }
+        
+        try {
+            const response = await fetch('/admin/api/servers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast(result.message || '服务器保存成功', 'success');
+                document.getElementById('serverForm').reset();
+                document.getElementById('serverId').value = '';
+                document.getElementById('serverAction').value = 'add';
+                document.getElementById('serverSaveText').textContent = '添加服务器';
+                // 重置隐藏字段为默认值
+                document.getElementById('defaultPortImap').value = '993';
+                document.getElementById('defaultPortPop3').value = '995';
+                document.getElementById('serverSslEnabled').value = 'true';
+                document.getElementById('serverRemarks').value = '';
+                document.getElementById('sendServerAddress').value = '';
+                loadServers();
+                loadServerList();
+            } else {
+                showToast(result.message || '服务器保存失败', 'error');
+            }
+        } catch (error) {
+            console.error('保存服务器失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 编辑服务器
+    function editServer(id) {
+        const server = servers.find(s => s.id === id);
+        if (server) {
+            document.getElementById('serverId').value = server.id;
+            document.getElementById('serverAction').value = 'edit';
+            document.getElementById('serverName').value = server.server_name;
+            document.getElementById('serverAddress').value = server.server_address;
+            document.getElementById('sendServerAddress').value = server.send_server_address || '';
+            // 隐藏字段保持原值
+            document.getElementById('defaultPortImap').value = server.default_port_imap;
+            document.getElementById('defaultPortPop3').value = server.default_port_pop3;
+            document.getElementById('serverSslEnabled').value = server.ssl_enabled ? 'true' : 'false';
+            document.getElementById('serverRemarks').value = server.remarks || '';
+            document.getElementById('serverSaveText').textContent = '更新服务器';
+        }
+    }
+    
+    // 删除服务器
+    async function deleteServer(id) {
+        if (!confirm('确定要删除这个服务器配置吗？')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/api/servers', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ids: [id] })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast('服务器删除成功', 'success');
+                loadServers();
+                loadServerList();
+            } else {
+                showToast(data.message || '删除失败', 'error');
+            }
+        } catch (error) {
+            console.error('删除服务器失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 批量删除服务器
+    async function batchDeleteServers() {
+        if (selectedServers.size === 0) {
+            showToast('请选择要删除的服务器', 'error');
+            return;
+        }
+        
+        if (!confirm(`确定要删除选中的 ${selectedServers.size} 个服务器配置吗？`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/api/servers', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ids: Array.from(selectedServers) })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast(data.message || '批量删除成功', 'success');
+                selectedServers.clear();
+                loadServers();
+                loadServerList();
+            } else {
+                showToast(data.message || '批量删除失败', 'error');
+            }
+        } catch (error) {
+            console.error('批量删除失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // ========== 模态框管理 ==========
+    
+    // 关闭添加/编辑邮箱模态框
+    function closeModal() {
+        document.getElementById('mailboxModal').classList.remove('show');
+    }
+    
+    // 关闭批量添加模态框
+    function closeBatchAddModal() {
+        document.getElementById('batchAddModal').classList.remove('show');
+    }
+    
+    // 关闭服务器管理模态框
+    function closeServerModal() {
+        document.getElementById('serverModal').classList.remove('show');
+        selectedServers.clear();
+        updateBatchDeleteServersButton();
+    }
+    
+    // 发件模态框
+    function openSendModal(id) {
+        document.getElementById('sendMailForm').reset();
+        document.getElementById('sendMailboxId').value = id;
+        document.getElementById('sendMailModal').classList.add('show');
+    }
+    
+    function closeSendModal() {
+        document.getElementById('sendMailModal').classList.remove('show');
+    }
+    
+    // 备注模态框
+    async function editMailboxRemarks(id) {
+        try {
+            const response = await fetch(`/admin/api/mailbox?id=${id}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const mailbox = data.data;
+                document.getElementById('remarksMailboxId').value = mailbox.id;
+                document.getElementById('remarksText').value = mailbox.remarks || '';
+                document.getElementById('remarksModal').classList.add('show');
+            } else {
+                showToast(data.message || '获取邮箱信息失败', 'error');
+            }
+        } catch (error) {
+            console.error('获取邮箱信息失败:', error);
+            showToast('获取邮箱信息失败', 'error');
+        }
+    }
+    
+    function closeRemarksModal() {
+        document.getElementById('remarksModal').classList.remove('show');
+    }
+    
+    async function saveMailboxRemarks() {
+        const mailboxId = document.getElementById('remarksMailboxId').value;
+        const remarks = document.getElementById('remarksText').value;
+        
+        if (!mailboxId) {
+            showToast('邮箱ID缺失', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/api/mailbox', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'update_remarks',
+                    id: parseInt(mailboxId, 10),
+                    remarks: remarks
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast('备注保存成功', 'success');
+                closeRemarksModal();
+                loadMailboxes(currentPage, searchQuery);
+            } else {
+                showToast(result.message || '保存失败', 'error');
+            }
+        } catch (error) {
+            console.error('保存备注失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+    
+    // 点击模态框外部关闭
+    document.getElementById('mailboxModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
+        }
+    });
+    
+    document.getElementById('batchAddModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeBatchAddModal();
+        }
+    });
+    
+    document.getElementById('serverModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeServerModal();
+        }
+    });
+    
+    document.getElementById('sendMailModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeSendModal();
+        }
+    });
+
+    document.getElementById('receiveModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeReceiveModal();
+        }
+    });
+    
+    document.getElementById('remarksModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeRemarksModal();
+        }
+    });
+    
+    // 键盘事件
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+            closeBatchAddModal();
+            closeServerModal();
+            closeSendModal();
+            closeReceiveModal();
+            closeRemarksModal();
+        }
+        
+        if (e.key === 'Enter' && document.getElementById('searchInput') === document.activeElement) {
+            searchMailboxes();
+        }
+    });
+    
+    // ========== 工具函数 ==========
+    
+    // Toast通知系统
+    let toastIdCounter = 0;
+    
+    function showToast(message, type = 'info', duration = 3000) {
+        const container = document.getElementById('toast-container');
+        
+        const toast = document.createElement('div');
+        const toastId = `toast-${++toastIdCounter}`;
+        toast.id = toastId;
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        // If duration is 0, toast persists indefinitely (must be removed manually)
+        if (duration > 0) {
+            setTimeout(() => {
+                removeToast(toastId);
+            }, duration);
+        }
+        
+        return toastId;  // Return the toast ID so it can be removed later
+    }
+    
+    function removeToast(toastId) {
+        const toast = document.getElementById(toastId);
+        if (!toast) return;
+        
+        toast.classList.remove('show');
+        setTimeout(() => {
+            const container = document.getElementById('toast-container');
+            if (container && container.contains(toast)) {
+                container.removeChild(toast);
+            }
+        }, 300);
+    }
+    
+    function updateEmailCountDisplay(value) {
+        const count = Math.min(Math.max(parseInt(value) || 10, 1), 100);
+        const display = document.getElementById('emailCountDisplay');
+        if (display) {
+            display.textContent = count;
+        }
+        // Update the input value to match the constrained value
+        const input = document.getElementById('emailCountInput');
+        if (input && parseInt(input.value) !== count) {
+            input.value = count;
+        }
+    }
+    
+    // 工具函数
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function formatDateTime(dateString) {
+        if (!dateString) return '-';
+        try {
+            const hasTimezone = /[+-]\d{2}:?\d{2}|Z$/.test(dateString);
+            const normalized = dateString.replace(' ', 'T');
+            const dateObj = hasTimezone ? new Date(normalized) : new Date(normalized + '+08:00');
+            return dateObj.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        } catch (e) {
+            return dateString;
+        }
+    }
+</script>
+{% endblock %}

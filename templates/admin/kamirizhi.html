@@ -1,0 +1,892 @@
+{% extends "base.html" %}
+
+{% block title %}卡密日志 - {{ system_title }}{% endblock %}
+
+{% block head %}
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    :root {
+        --primary-color: #667eea;
+        --secondary-color: #764ba2;
+        --sidebar-width: 200px;
+        --sidebar-collapsed-width: 72px;
+        --header-height: 70px;
+        --transition: all 0.3s ease;
+    }
+    
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #f8fafc;
+        line-height: 1.6;
+        color: #334155;
+        transition: var(--transition);
+    }
+    
+    /* Sidebar Styles */
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: var(--sidebar-width);
+        height: 100vh;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        z-index: 1000;
+        transition: var(--transition);
+        box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar-header {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .sidebar-logo {
+        color: white;
+        font-size: 20px;
+        font-weight: 700;
+        text-align: center;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .sidebar-nav {
+        padding: 20px 0;
+    }
+    
+    .nav-item {
+        display: block;
+        color: rgba(255,255,255,0.8);
+        text-decoration: none;
+        padding: 15px 25px;
+        transition: var(--transition);
+        border-left: 3px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .nav-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.1);
+        transform: translateX(-100%);
+        transition: var(--transition);
+    }
+    
+    .nav-item:hover::before {
+        transform: translateX(0);
+    }
+    
+    .nav-item:hover,
+    .nav-item.active {
+        color: white;
+        background: rgba(255,255,255,0.15);
+        border-left-color: white;
+        transform: translateX(5px);
+    }
+    
+    .nav-item i {
+        margin-right: 10px;
+        width: 20px;
+        text-align: center;
+    }
+    
+    .sidebar-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        cursor: pointer;
+        color: #4b5563;
+        transition: var(--transition);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .sidebar-toggle:hover {
+        color: var(--primary-color);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+    }
+
+    body.sidebar-collapsed .sidebar {
+        width: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-collapsed .main-content {
+        margin-left: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-collapsed .sidebar-logo {
+        font-size: 0;
+        padding: 14px 0;
+    }
+
+    body.sidebar-collapsed .sidebar-logo::after {
+        content: '📧';
+        font-size: 20px;
+        display: block;
+        text-align: center;
+    }
+
+    body.sidebar-collapsed .nav-item {
+        padding: 12px 0;
+        text-align: center;
+        font-size: 0;
+        border-left-color: transparent;
+    }
+
+    body.sidebar-collapsed .nav-item:hover,
+    body.sidebar-collapsed .nav-item.active {
+        transform: none;
+    }
+
+    body.sidebar-collapsed .nav-item i {
+        margin-right: 0;
+        font-size: 18px;
+    }
+
+    body.sidebar-collapsed .nav-item::before {
+        display: none;
+    }
+    
+    /* Main Content */
+    .main-content {
+        margin-left: var(--sidebar-width);
+        min-height: 100vh;
+        transition: var(--transition);
+    }
+    
+    .header {
+        background: white;
+        height: var(--header-height);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 30px;
+        position: sticky;
+        top: 0;
+        z-index: 999;
+    }
+    
+    .header-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        color: #64748b;
+    }
+    
+    .logout-btn {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        text-decoration: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    
+    .logout-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Content Area */
+    .content {
+        padding: 30px;
+        min-height: calc(100vh - var(--header-height));
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    /* Cards */
+    .card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 25px;
+        transition: var(--transition);
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1), 0 4px 10px rgba(0,0,0,0.06);
+    }
+    
+    .card-header {
+        padding: 20px 25px;
+        border-bottom: 1px solid #f1f5f9;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+    
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    .card-body {
+        padding: 25px;
+    }
+    
+    .feature-intro {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6b7280;
+    }
+    
+    .feature-intro h3 {
+        font-size: 20px;
+        color: #374151;
+        margin-bottom: 15px;
+    }
+    
+    .feature-intro p {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 10px;
+    }
+    
+    .feature-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: var(--primary-color);
+    }
+    
+    .btn {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        color: white;
+        font-size: 14px;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    }
+    
+    .btn-danger {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .search-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .search-box {
+        display: flex;
+        gap: 10px;
+        flex: 1;
+        min-width: 240px;
+    }
+    
+    .search-box input {
+        flex: 1;
+        padding: 10px 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .search-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+.table-container {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+}
+
+    .content > .card:last-of-type {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .content > .card:last-of-type .card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    table th, table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #e5e7eb;
+        text-align: left;
+    }
+    
+    table th {
+        background: #f8fafc;
+        font-weight: 600;
+    }
+    
+    .pagination-container {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding: 10px 0 6px;
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.03);
+        z-index: 5;
+    }
+    
+    .pagination-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+    
+.pagination-info {
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .page-size-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .page-size-control select {
+        padding: 8px 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .page-btn {
+        padding: 8px 12px;
+        border: 1px solid #e5e7eb;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    
+    .page-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    /* Mobile menu toggle - default hidden */
+    .mobile-menu-toggle {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #64748b;
+        transition: var(--transition);
+    }
+    
+    .mobile-menu-toggle:hover {
+        color: var(--primary-color);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .sidebar {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar.mobile-open {
+            transform: translateX(0);
+        }
+
+        body.sidebar-collapsed .sidebar {
+            width: 260px;
+        }
+
+        body.sidebar-collapsed .nav-item {
+            font-size: inherit;
+            padding: 15px 25px;
+            text-align: left;
+        }
+
+        body.sidebar-collapsed .nav-item i {
+            margin-right: 10px;
+            font-size: inherit;
+        }
+
+        body.sidebar-collapsed .sidebar-logo {
+            font-size: 20px;
+            padding: 20px;
+        }
+
+        body.sidebar-collapsed .sidebar-logo::after {
+            content: '';
+        }
+
+        .sidebar-toggle {
+            display: none;
+        }
+        
+        .main-content {
+            margin-left: 0;
+        }
+        
+        .header-title {
+            font-size: 20px;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .mobile-menu-toggle {
+            display: block !important;
+        }
+    }
+    
+    /* Mobile overlay */
+    .mobile-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        display: none;
+    }
+    
+    .mobile-overlay.show {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<!-- Mobile overlay -->
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">📧 邮件管理系统</div>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="{{ url_for('admin_home') }}" class="nav-item">
+            <i>🏠</i> 首页
+        </a>
+        <a href="{{ url_for('admin_mailbox') }}" class="nav-item">
+            <i>📫</i> 邮箱管理
+        </a>
+        <a href="{{ url_for('admin_daili') }}" class="nav-item">
+            <i>🌐</i> 代理池
+        </a>
+        <a href="{{ url_for('admin_kami') }}" class="nav-item">
+            <i>🔑</i> 卡密管理
+        </a>
+        <a href="{{ url_for('admin_kamirizhi') }}" class="nav-item active">
+            <i>📝</i> 卡密日志
+        </a>
+        <a href="{{ url_for('admin_shoujian') }}" class="nav-item">
+            <i>📧</i> 收件日志
+        </a>
+        <a href="{{ url_for('admin_system') }}" class="nav-item">
+            <i>⚙️</i> 系统设置
+        </a>
+    </nav>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <div class="header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="展开侧边栏">⮞</button>
+            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+            <h1 class="header-title">卡密日志</h1>
+        </div>
+        <div class="header-actions">
+            <div class="user-info">
+                <span>欢迎，{{ admin_username }}</span>
+            </div>
+            <a href="{{ url_for('admin_logout') }}" class="logout-btn">退出登录</a>
+        </div>
+    </div>
+    
+    <div class="content">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">卡密使用日志</h2>
+            </div>
+             <div class="card-body scroll-card-body">
+                <div class="search-controls">
+                    <div class="search-box">
+                        <input type="text" id="cardLogSearch" placeholder="搜索卡密..." onkeydown="if(event.key==='Enter'){searchCardLogs();}">
+                        <button class="btn btn-primary" onclick="searchCardLogs()">🔍 搜索</button>
+                        <button class="btn btn-danger" onclick="clearLogSearch()">🧹 清除</button>
+                    </div>
+                    <div class="search-actions">
+                        <input type="number" id="retentionDays" min="0" placeholder="保留天数(0关闭)" style="padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; width: 160px;">
+                        <button class="btn btn-primary" onclick="saveLogRetention()">💾 保存定期清理</button>
+                        <button class="btn btn-danger" onclick="clearCardLogs()">🗑️ 清空日志</button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>卡密</th>
+                                <th>卡密绑定邮箱</th>
+                                <th>邮件标题</th>
+                                <th>使用者IP</th>
+                                <th>使用时间（北京时间）</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cardLogBody">
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding:20px; color:#6b7280;">正在加载...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-container" id="logPagination"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const SIDEBAR_COLLAPSE_KEY = 'adminSidebarCollapsed';
+
+    function updateSidebarToggleButton() {
+        const btn = document.getElementById('sidebarToggle');
+        if (!btn) return;
+        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+        btn.textContent = isCollapsed ? '⮞' : '⮜';
+        btn.setAttribute('aria-expanded', (!isCollapsed).toString());
+        btn.title = isCollapsed ? '展开菜单' : '收起菜单';
+    }
+
+    function applySidebarState(collapsed) {
+        if (window.innerWidth <= 768) {
+            document.body.classList.remove('sidebar-collapsed');
+            updateSidebarToggleButton();
+            return;
+        }
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        updateSidebarToggleButton();
+    }
+
+    function toggleSidebarCollapse() {
+        const shouldCollapse = !document.body.classList.contains('sidebar-collapsed');
+        localStorage.setItem(SIDEBAR_COLLAPSE_KEY, shouldCollapse ? '1' : '0');
+        applySidebarState(shouldCollapse);
+    }
+
+    function initSidebarCollapse() {
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', toggleSidebarCollapse);
+        }
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+        const shouldCollapse = saved === null ? true : saved === '1';
+        applySidebarState(shouldCollapse);
+    }
+
+    function handleSidebarResize() {
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+        const shouldCollapse = saved === null ? true : saved === '1';
+        applySidebarState(shouldCollapse);
+        if (window.innerWidth > 768) {
+            closeMobileMenu();
+        }
+    }
+
+    // Mobile menu functionality
+    function toggleMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        if (sidebar.classList.contains('mobile-open')) {
+            closeMobileMenu();
+        } else {
+            openMobileMenu();
+        }
+    }
+    
+    function openMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.add('mobile-open');
+        overlay.classList.add('show');
+    }
+    
+    function closeMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('show');
+    }
+    
+    // Close mobile menu when clicking on navigation items
+    document.addEventListener('DOMContentLoaded', function() {
+        initSidebarCollapse();
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', function() {
+                closeMobileMenu();
+            });
+        });
+        loadCardLogs();
+        window.addEventListener('resize', handleSidebarResize);
+    });
+
+    let logPage = 1;
+    let logPerPage = 150;
+    let logSearch = '';
+
+    async function loadCardLogs(page = 1) {
+        logPage = page;
+        try {
+            const params = new URLSearchParams({
+                page: page,
+                per_page: logPerPage,
+                search: logSearch
+            });
+            const response = await fetch(`/admin/api/card-logs?${params}`);
+            const data = await response.json();
+            if (data.success) {
+                renderCardLogs(data.data);
+                renderLogPagination(data.pagination);
+                if (typeof data.retention_days !== 'undefined') {
+                    document.getElementById('retentionDays').value = data.retention_days;
+                }
+            } else {
+                showToast(data.message || '加载卡密日志失败', 'error');
+            }
+        } catch (error) {
+            console.error('加载卡密日志失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+
+    function renderCardLogs(logs) {
+        const tbody = document.getElementById('cardLogBody');
+        if (!logs || logs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#6b7280;">暂无卡密日志</td></tr>`;
+            return;
+        }
+        
+        tbody.innerHTML = logs.map((log, index) => `
+            <tr>
+                <td>${(logPage - 1) * logPerPage + index + 1}</td>
+                <td>${escapeHtml(log.card_key)}</td>
+                <td>${escapeHtml(log.bound_email || '-')}</td>
+                <td>${escapeHtml(log.mail_subject || '-')}</td>
+                <td>${escapeHtml(log.user_ip || '-')}</td>
+                <td>${formatDateTime(log.created_at)}</td>
+            </tr>
+        `).join('');
+    }
+
+    function renderLogPagination(pagination) {
+        const container = document.getElementById('logPagination');
+        if (!pagination) {
+            container.innerHTML = '';
+            return;
+        }
+        
+        let html = `<div class="pagination-info">共 ${pagination.total} 条记录，第 ${pagination.page} 页，共 ${pagination.pages} 页</div>`;
+        html += `<div class="page-size-control">
+            <label for="logPerPageSelect">每页</label>
+            <select id="logPerPageSelect" onchange="changeLogPerPage()">
+                <option value="150" ${logPerPage === 150 ? 'selected' : ''}>150条</option>
+                <option value="200" ${logPerPage === 200 ? 'selected' : ''}>200条</option>
+                <option value="250" ${logPerPage === 250 ? 'selected' : ''}>250条</option>
+                <option value="300" ${logPerPage === 300 ? 'selected' : ''}>300条</option>
+            </select>
+        </div>`;
+        
+        if (pagination.pages > 1) {
+            html += '<div class="pagination-buttons">';
+            
+            if (pagination.page > 1) {
+                html += `<button class="page-btn" onclick="loadCardLogs(${pagination.page - 1})">« 上一页</button>`;
+            }
+            
+            let startPage = Math.max(1, pagination.page - 2);
+            let endPage = Math.min(pagination.pages, pagination.page + 2);
+            
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="loadCardLogs(1)">1</button>`;
+                if (startPage > 2) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === pagination.page ? 'active' : '';
+                html += `<button class="page-btn ${activeClass}" onclick="loadCardLogs(${i})">${i}</button>`;
+            }
+            
+            if (endPage < pagination.pages) {
+                if (endPage < pagination.pages - 1) {
+                    html += '<span class="page-btn" style="border: none; cursor: default;">...</span>';
+                }
+                html += `<button class="page-btn" onclick="loadCardLogs(${pagination.pages})">${pagination.pages}</button>`;
+            }
+            
+            if (pagination.page < pagination.pages) {
+                html += `<button class="page-btn" onclick="loadCardLogs(${pagination.page + 1})">下一页 »</button>`;
+            }
+            
+            html += '</div>';
+        }
+        
+        container.innerHTML = html;
+    }
+
+    function changeLogPerPage() {
+        const select = document.getElementById('logPerPageSelect');
+        logPerPage = parseInt(select.value, 10) || 150;
+        loadCardLogs(1);
+    }
+
+    function searchCardLogs() {
+        logSearch = document.getElementById('cardLogSearch').value.trim();
+        loadCardLogs(1);
+    }
+
+    function clearLogSearch() {
+        document.getElementById('cardLogSearch').value = '';
+        logSearch = '';
+        loadCardLogs(1);
+    }
+
+    async function clearCardLogs() {
+        if (!confirm('确定要清空卡密日志吗？')) {
+            return;
+        }
+        try {
+            const response = await fetch('/admin/api/card-logs', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast(data.message || '已清空卡密日志', 'success');
+                loadCardLogs(logPage);
+            } else {
+                showToast(data.message || '清空失败', 'error');
+            }
+        } catch (error) {
+            console.error('清空日志失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+
+    async function saveLogRetention() {
+        const days = parseInt(document.getElementById('retentionDays').value || '0');
+        try {
+            const response = await fetch('/admin/api/card-logs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'set_retention',
+                    days: isNaN(days) ? 0 : days
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast(data.message || '已保存', 'success');
+                loadCardLogs(logPage);
+            } else {
+                showToast(data.message || '保存失败', 'error');
+            }
+        } catch (error) {
+            console.error('保存保留策略失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        }
+    }
+
+    function formatDateTime(dateString) {
+        if (!dateString) return '-';
+        try {
+            const hasTimezone = /[+-]\d{2}:?\d{2}|Z$/.test(dateString);
+            const normalized = dateString.replace(' ', 'T');
+            const date = hasTimezone ? new Date(normalized) : new Date(normalized + '+08:00');
+            return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        } catch (e) {
+            return dateString;
+        }
+    }
+
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text ? text.replace(/[&<>"']/g, function(m) { return map[m]; }) : '';
+    }
+
+    function showToast(message) {
+        alert(message);
+    }
+</script>
+{% endblock %}

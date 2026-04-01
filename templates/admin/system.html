@@ -1,0 +1,1120 @@
+{% extends "base.html" %}
+
+{% block title %}系统设置 - {{ system_title }}{% endblock %}
+
+{% block head %}
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    :root {
+        --primary-color: #667eea;
+        --secondary-color: #764ba2;
+        --sidebar-width: 200px;
+        --sidebar-collapsed-width: 72px;
+        --header-height: 70px;
+        --transition: all 0.3s ease;
+    }
+    
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #f8fafc;
+        line-height: 1.6;
+        color: #334155;
+        transition: var(--transition);
+    }
+    
+    /* Sidebar Styles */
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: var(--sidebar-width);
+        height: 100vh;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        z-index: 1000;
+        transition: var(--transition);
+        box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar-header {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .sidebar-logo {
+        color: white;
+        font-size: 20px;
+        font-weight: 700;
+        text-align: center;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .sidebar-nav {
+        padding: 20px 0;
+    }
+    
+    .nav-item {
+        display: block;
+        color: rgba(255,255,255,0.8);
+        text-decoration: none;
+        padding: 15px 25px;
+        transition: var(--transition);
+        border-left: 3px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .nav-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.1);
+        transform: translateX(-100%);
+        transition: var(--transition);
+    }
+    
+    .nav-item:hover::before {
+        transform: translateX(0);
+    }
+    
+    .nav-item:hover,
+    .nav-item.active {
+        color: white;
+        background: rgba(255,255,255,0.15);
+        border-left-color: white;
+        transform: translateX(5px);
+    }
+    
+    .nav-item i {
+        margin-right: 10px;
+        width: 20px;
+        text-align: center;
+    }
+
+    .sidebar-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        cursor: pointer;
+        color: #4b5563;
+        transition: var(--transition);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .sidebar-toggle:hover {
+        color: var(--primary-color);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+    }
+
+    body.sidebar-collapsed .sidebar {
+        width: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-collapsed .main-content {
+        margin-left: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-collapsed .sidebar-logo {
+        font-size: 0;
+        padding: 14px 0;
+    }
+
+    body.sidebar-collapsed .sidebar-logo::after {
+        content: '📧';
+        font-size: 20px;
+        display: block;
+        text-align: center;
+    }
+
+    body.sidebar-collapsed .nav-item {
+        padding: 12px 0;
+        text-align: center;
+        font-size: 0;
+        border-left-color: transparent;
+    }
+
+    body.sidebar-collapsed .nav-item:hover,
+    body.sidebar-collapsed .nav-item.active {
+        transform: none;
+    }
+
+    body.sidebar-collapsed .nav-item i {
+        margin-right: 0;
+        font-size: 18px;
+    }
+
+    body.sidebar-collapsed .nav-item::before {
+        display: none;
+    }
+    
+    /* Main Content */
+    .main-content {
+        margin-left: var(--sidebar-width);
+        min-height: 100vh;
+        transition: var(--transition);
+    }
+    
+    .header {
+        background: white;
+        height: var(--header-height);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 30px;
+        position: sticky;
+        top: 0;
+        z-index: 999;
+    }
+    
+    .header-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        color: #64748b;
+    }
+    
+    .logout-btn {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        text-decoration: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    
+    .logout-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Content Area */
+    .content {
+        padding: 30px;
+    }
+    
+    /* Cards */
+    .card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 25px;
+        transition: var(--transition);
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1), 0 4px 10px rgba(0,0,0,0.06);
+    }
+    
+    .card-header {
+        padding: 20px 25px;
+        border-bottom: 1px solid #f1f5f9;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+    
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    .card-body {
+        padding: 25px;
+    }
+    
+    .feature-intro {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6b7280;
+    }
+    
+    .feature-intro h3 {
+        font-size: 20px;
+        color: #374151;
+        margin-bottom: 15px;
+    }
+    
+    .feature-intro p {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 10px;
+    }
+    
+    .feature-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: var(--primary-color);
+    }
+
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: var(--transition);
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-control:read-only {
+        background-color: #f9fafb;
+        color: #6b7280;
+    }
+
+    .secure-input {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .master-key-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+ 
+    .master-key-input,
+    .master-key-status {
+        flex: 0 1 320px;
+        min-width: 240px;
+        max-width: 360px;
+    }
+
+    .master-key-status .form-control {
+        text-align: center;
+        font-weight: 600;
+    }
+
+    .secure-input input {
+        padding-right: 110px;
+    }
+
+    .toggle-visibility {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        color: #4b5563;
+        border-radius: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: var(--transition);
+    }
+
+    .toggle-visibility:hover {
+        color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    /* Buttons */
+    .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: var(--transition);
+        text-align: center;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Toast Notifications */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 3000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 400px;
+    }
+
+    .toast {
+        padding: 15px 20px;
+        border-radius: 10px;
+        color: white;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transform: translateX(450px);
+        opacity: 0;
+        transition: all 0.3s ease;
+        position: relative;
+        background: #6b7280;
+        margin-bottom: 10px;
+    }
+
+    .toast.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    .toast.success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .toast.error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    .toast.info {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    .toast.warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+    
+    /* Mobile menu toggle button */
+    .mobile-menu-toggle {
+        display: none;
+    }
+    
+    /* Mobile overlay */
+    .mobile-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        display: none;
+    }
+    
+    .mobile-overlay.show {
+        display: block;
+    }
+    
+    /* Responsive styles */
+    @media (max-width: 768px) {
+        .sidebar {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar.mobile-open {
+            transform: translateX(0);
+        }
+        
+        .main-content {
+            margin-left: 0;
+        }
+        
+        .header-title {
+            font-size: 20px;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .mobile-menu-toggle {
+            display: block;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+        }
+        
+        .mobile-menu-toggle:hover {
+            color: var(--primary-color);
+        }
+
+        .sidebar-toggle {
+            display: none !important;
+        }
+
+        body.sidebar-collapsed .sidebar {
+            width: var(--sidebar-width);
+        }
+
+        body.sidebar-collapsed .nav-item {
+            padding: 15px 25px;
+            text-align: left;
+            font-size: inherit;
+        }
+
+        body.sidebar-collapsed .nav-item i {
+            margin-right: 10px;
+            font-size: inherit;
+        }
+
+        body.sidebar-collapsed .sidebar-logo {
+            font-size: 20px;
+            padding: 20px;
+        }
+
+        body.sidebar-collapsed .sidebar-logo::after {
+            display: none;
+        }
+        
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<!-- Toast notification container -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- Mobile overlay -->
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">📧 邮件管理系统</div>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="{{ url_for('admin_home') }}" class="nav-item">
+            <i>🏠</i> 首页
+        </a>
+        <a href="{{ url_for('admin_mailbox') }}" class="nav-item">
+            <i>📫</i> 邮箱管理
+        </a>
+        <a href="{{ url_for('admin_daili') }}" class="nav-item">
+            <i>🌐</i> 代理池
+        </a>
+        <a href="{{ url_for('admin_kami') }}" class="nav-item">
+            <i>🔑</i> 卡密管理
+        </a>
+        <a href="{{ url_for('admin_kamirizhi') }}" class="nav-item">
+            <i>📝</i> 卡密日志
+        </a>
+        <a href="{{ url_for('admin_shoujian') }}" class="nav-item">
+            <i>📧</i> 收件日志
+        </a>
+        <a href="{{ url_for('admin_system') }}" class="nav-item active">
+            <i>⚙️</i> 系统设置
+        </a>
+    </nav>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <div class="header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="展开侧边栏">»</button>
+            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+            <h1 class="header-title">系统设置</h1>
+        </div>
+        <div class="header-actions">
+            <div class="user-info">
+                <span>欢迎，{{ admin_username }}</span>
+            </div>
+            <a href="{{ url_for('admin_logout') }}" class="logout-btn">退出登录</a>
+        </div>
+    </div>
+    
+    <div class="content">
+        <!-- 管理员账号设置 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">👤 管理员账号设置</h2>
+            </div>
+            <div class="card-body">
+                <form id="adminAccountForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">管理员用户名</label>
+                            <input type="text" class="form-control" id="adminUsername" name="admin_username" 
+                                   placeholder="输入新的管理员用户名" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">管理员密码</label>
+                            <input type="password" class="form-control" id="adminPassword" name="admin_password" 
+                                   placeholder="输入新的管理员密码" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">确认密码</label>
+                        <input type="password" class="form-control" id="confirmPassword" name="confirm_password" 
+                               placeholder="再次输入密码确认" required>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="updateAdminAccount()">更新管理员账号</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 管理员万能秘钥 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">🛡️ 管理员万能秘钥</h2>
+            </div>
+            <div class="card-body">
+                <form id="masterKeyForm">
+                    <div class="form-group master-key-row">
+                        <div class="master-key-input">
+                            <label class="form-label">万能秘钥</label>
+                            <div class="secure-input">
+                                <input type="password" class="form-control" id="adminMasterKey" name="admin_master_key" placeholder="至少6位，设置后可免卡密取件">
+                                <button type="button" class="toggle-visibility" id="toggleMasterKeyVisibility" onclick="toggleAdminMasterKeyVisibility()" aria-label="显示或隐藏万能秘钥">👁</button>
+                            </div>
+                        </div>
+                        <div class="master-key-status">
+                            <label class="form-label">当前状态</label>
+                            <input type="text" class="form-control" id="masterKeyStatusText" value="未设置万能秘钥" readonly>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="masterKeySubmitBtn" onclick="updateAdminMasterKey()">设置万能秘钥</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 系统标题设置 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">🎯 系统标题设置</h2>
+            </div>
+            <div class="card-body">
+                <form id="systemTitleForm">
+                    <div class="form-group">
+                        <label class="form-label">系统名称/标题</label>
+                        <input type="text" class="form-control" id="systemTitle" name="system_title" 
+                               placeholder="邮件查看系统" value="邮件查看系统">
+                        <small style="color: #6b7280;">显示在后端管理页面标题中的系统名称，修改后即时生效</small>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="updateSystemTitle()">更新系统标题</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 页面标题设置 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">🏷️ 页面标题设置</h2>
+            </div>
+            <div class="card-body">
+                <form id="pageTitlesForm">
+                    <div class="form-group">
+                        <label class="form-label">API取件页面标题</label>
+                        <input type="text" class="form-control" id="apiPageTitle" name="api_page_title" 
+                               placeholder="API取件页面" value="API取件页面">
+                        <small style="color: #6b7280;">显示在API取件页面的标题</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">前端取件页面标题</label>
+                        <input type="text" class="form-control" id="frontendPageTitle" name="frontend_page_title" 
+                               placeholder="邮件查看" value="邮件查看">
+                        <small style="color: #6b7280;">显示在前端取件页面的标题</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">管理员登录页面标题</label>
+                        <input type="text" class="form-control" id="adminLoginTitle" name="admin_login_title" 
+                               placeholder="管理员登录" value="管理员登录">
+                        <small style="color: #6b7280;">显示在管理员登录页面的标题</small>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="updatePageTitles()">更新页面标题</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 系统信息 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">ℹ️ 系统信息</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">系统名称</label>
+                        <input type="text" class="form-control" id="systemNameDisplay" value="{{ system_title }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">系统版本</label>
+                        <input type="text" class="form-control" value="2.0.0" readonly>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">数据库类型</label>
+                        <input type="text" class="form-control" id="databaseType" value="SQLite" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">当前管理员</label>
+                        <input type="text" class="form-control" value="{{ admin_username }}" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Toast通知系统
+    function showToast(message, type = 'info', duration = 3000) {
+        const container = document.getElementById('toast-container') || createToastContainer();
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (container.contains(toast)) {
+                    container.removeChild(toast);
+                }
+            }, 300);
+        }, duration);
+    }
+
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+        return container;
+    }
+
+    function setMasterKeyStatus(isSet) {
+        const statusText = document.getElementById('masterKeyStatusText');
+        const submitBtn = document.getElementById('masterKeySubmitBtn');
+        if (!statusText) return;
+        statusText.value = isSet ? '已设置万能秘钥' : '未设置万能秘钥';
+        statusText.style.color = isSet ? '#10b981' : '#f97316';
+        if (submitBtn) {
+            submitBtn.textContent = isSet ? '修改万能秘钥' : '设置万能秘钥';
+        }
+    }
+
+    function toggleAdminMasterKeyVisibility() {
+        const input = document.getElementById('adminMasterKey');
+        const toggleBtn = document.getElementById('toggleMasterKeyVisibility');
+        if (!input || !toggleBtn) return;
+        const isHidden = input.type === 'password';
+        input.type = isHidden ? 'text' : 'password';
+        toggleBtn.textContent = isHidden ? '🙈' : '👁';
+        toggleBtn.setAttribute('aria-label', isHidden ? '隐藏万能秘钥' : '显示万能秘钥');
+    }
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        setMasterKeyStatus(false);
+        loadCurrentSettings();
+    });
+
+    // 加载当前设置
+    function loadCurrentSettings() {
+        // 加载当前管理员信息
+        fetch('/admin/api/system-config')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新当前管理员用户名到输入框
+                    if (data.data.admin_username) {
+                        document.getElementById('adminUsername').value = data.data.admin_username;
+                    }
+                    
+                    // 更新系统标题设置
+                    if (data.data.system_title) {
+                        document.getElementById('systemTitle').value = data.data.system_title;
+                        // 同时更新系统信息区域的显示
+                        const systemNameDisplay = document.getElementById('systemNameDisplay');
+                        if (systemNameDisplay) {
+                            systemNameDisplay.value = data.data.system_title;
+                        }
+                    }
+                    
+                    // 更新页面标题设置
+                    if (data.data.api_page_title) {
+                        document.getElementById('apiPageTitle').value = data.data.api_page_title;
+                    }
+                    if (data.data.frontend_page_title) {
+                        document.getElementById('frontendPageTitle').value = data.data.frontend_page_title;
+                    }
+                    if (data.data.admin_login_title) {
+                        document.getElementById('adminLoginTitle').value = data.data.admin_login_title;
+                    }
+ 
+                    if (typeof data.data.admin_master_key_set !== 'undefined') {
+                        setMasterKeyStatus(data.data.admin_master_key_set);
+                    }
+                    
+                    // 更新数据库类型显示
+                    if (data.data.database_type) {
+                        document.getElementById('databaseType').value = data.data.database_type.toUpperCase();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('加载系统设置失败:', error);
+            });
+    }
+
+    // 更新管理员账号
+    function updateAdminAccount() {
+        const username = document.getElementById('adminUsername').value.trim();
+        const password = document.getElementById('adminPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        // 验证输入
+        if (!username) {
+            showToast('请输入管理员用户名', 'error');
+            return;
+        }
+
+        if (!password) {
+            showToast('请输入管理员密码', 'error');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            showToast('两次输入的密码不一致', 'error');
+            return;
+        }
+
+        if (password.length < 4) {
+            showToast('密码长度至少4位', 'error');
+            return;
+        }
+
+        // 确认操作
+        if (!confirm('确定要更新管理员账号吗？更新后需要重新登录。')) {
+            return;
+        }
+
+        const data = {
+            action: 'update_admin',
+            admin_username: username,
+            admin_password: password
+        };
+
+        fetch('/admin/api/system-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('管理员账号更新成功，为确保安全将立即重新登录', 'success');
+                // 清空密码字段
+                document.getElementById('adminPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+                // 检查是否需要强制登出
+                if (data.force_logout) {
+                    // 立即跳转到登录页
+                    setTimeout(() => {
+                        window.location.href = '/admin/logout';
+                    }, 1500);
+                } else {
+                    // 兼容旧逻辑，3秒后跳转
+                    setTimeout(() => {
+                        window.location.href = '/admin/logout';
+                    }, 3000);
+                }
+            } else {
+                showToast(data.message || '更新失败', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('更新管理员账号失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        });
+    }
+
+    // 更新管理员万能秘钥
+    function updateAdminMasterKey() {
+        const masterKey = document.getElementById('adminMasterKey').value.trim();
+        
+        if (!masterKey) {
+            showToast('请输入万能秘钥', 'error');
+            return;
+        }
+        
+        if (masterKey.length < 6) {
+            showToast('万能秘钥长度至少6位', 'error');
+            return;
+        }
+
+        fetch('/admin/api/system-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'update_admin_master_key',
+                admin_master_key: masterKey,
+                confirm_master_key: masterKey
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('万能秘钥更新成功', 'success');
+                setMasterKeyStatus(true);
+            } else {
+                showToast(data.message || '更新失败', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('更新万能秘钥失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        });
+    }
+
+    // 更新页面标题
+    function updatePageTitles() {
+        const apiPageTitle = document.getElementById('apiPageTitle').value.trim();
+        const frontendPageTitle = document.getElementById('frontendPageTitle').value.trim();
+        const adminLoginTitle = document.getElementById('adminLoginTitle').value.trim();
+
+        // 验证输入
+        if (!apiPageTitle || !frontendPageTitle || !adminLoginTitle) {
+            showToast('请填写所有页面标题', 'error');
+            return;
+        }
+
+        const data = {
+            action: 'update_page_titles',
+            api_page_title: apiPageTitle,
+            frontend_page_title: frontendPageTitle,
+            admin_login_title: adminLoginTitle
+        };
+
+        fetch('/admin/api/system-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('页面标题更新成功', 'success');
+            } else {
+                showToast(data.message || '更新失败', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('更新页面标题失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        });
+    }
+    // 更新系统标题
+    function updateSystemTitle() {
+        const systemTitle = document.getElementById('systemTitle').value.trim();
+
+        // 验证输入
+        if (!systemTitle) {
+            showToast('请输入系统标题', 'error');
+            return;
+        }
+
+        const data = {
+            action: 'update_system_title',
+            system_title: systemTitle
+        };
+
+        fetch('/admin/api/system-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('系统标题更新成功，页面标题将即时生效', 'success');
+                // 更新页面标题立即反映变化
+                document.title = document.title.replace(/- .+$/, '- ' + systemTitle);
+                // 更新系统信息区域的系统名称显示
+                const systemNameDisplay = document.getElementById('systemNameDisplay');
+                if (systemNameDisplay) {
+                    systemNameDisplay.value = systemTitle;
+                }
+            } else {
+                showToast(data.message || '更新失败', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('更新系统标题失败:', error);
+            showToast('网络错误，请稍后重试', 'error');
+        });
+    }
+
+    console.log('系统设置页面已加载');
+    
+    const SIDEBAR_COLLAPSE_KEY = 'adminSidebarCollapsed';
+
+    function updateSidebarToggleButton() {
+        const btn = document.getElementById('sidebarToggle');
+        if (!btn) return;
+        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+        btn.textContent = isCollapsed ? '»' : '«';
+        btn.setAttribute('aria-expanded', (!isCollapsed).toString());
+        btn.title = isCollapsed ? '展开菜单' : '收起菜单';
+    }
+
+    function applySidebarState(collapsed) {
+        if (window.innerWidth <= 768) {
+            document.body.classList.remove('sidebar-collapsed');
+            updateSidebarToggleButton();
+            return;
+        }
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        updateSidebarToggleButton();
+    }
+
+    function toggleSidebarCollapse() {
+        const shouldCollapse = !document.body.classList.contains('sidebar-collapsed');
+        localStorage.setItem(SIDEBAR_COLLAPSE_KEY, shouldCollapse ? '1' : '0');
+        applySidebarState(shouldCollapse);
+    }
+
+    function initSidebarCollapse() {
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', toggleSidebarCollapse);
+        }
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+        const shouldCollapse = saved === null ? true : saved === '1';
+        applySidebarState(shouldCollapse);
+    }
+
+    function handleSidebarResize() {
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+        const shouldCollapse = saved === null ? true : saved === '1';
+        applySidebarState(shouldCollapse);
+        if (window.innerWidth > 768) {
+            closeMobileMenu();
+        }
+    }
+
+    // Mobile menu functionality
+    function toggleMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        if (sidebar.classList.contains('mobile-open')) {
+            closeMobileMenu();
+        } else {
+            openMobileMenu();
+        }
+    }
+    
+    function openMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.add('mobile-open');
+        overlay.classList.add('show');
+    }
+    
+    function closeMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('show');
+    }
+    
+    // Close mobile menu when clicking on navigation items
+    document.addEventListener('DOMContentLoaded', function() {
+        initSidebarCollapse();
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', function() {
+                // Close mobile menu when navigating
+                if (window.innerWidth <= 768) {
+                    closeMobileMenu();
+                }
+            });
+        });
+        
+        // Close mobile menu on window resize if screen becomes large
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                closeMobileMenu();
+            }
+            handleSidebarResize();
+        });
+    });
+</script>
+{% endblock %}
