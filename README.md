@@ -778,13 +778,6 @@ mysql -u root -p -e "SHOW PROCESSLIST;"
 psql -U postgres -c "SELECT * FROM pg_stat_activity;"
 ```
 
-## 🔗 相关链接
-
-- **GitHub 仓库**：https://github.com/douliu6767/mail-915
-- **问题反馈**：https://github.com/douliu6767/mail-915/issues
-- **文档中心**：https://github.com/douliu6767/mail-915/wiki
-- **更新日志**：https://github.com/douliu6767/mail-915/releases
-
 ## 📄 许可证
 
 本项目基于 MIT 许可证开源，可自由使用和修改。
@@ -813,15 +806,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## 🙏 致谢
+## 🔗 相关链接
 
-感谢所有为这个项目做出贡献的开发者和用户。特别感谢：
-
-- Flask 框架的开发团队
-- IMAPClient 库的维护者
-- 所有提供反馈和建议的用户
-- 开源社区的支持
-
----
-
-**Mail-915 v2.2.0** - 现代化邮件管理解决方案，完美支持桌面端、移动端和容器化部署。
+- **GitHub 仓库**：https://github.com/douliu6767/Mail
+- **友链.linux.do https://linux.do
