@@ -809,4 +809,4 @@ SOFTWARE.
 ## 🔗 相关链接
 
 - **GitHub 仓库**：https://github.com/douliu6767/Mail
-- **友链.linux.do https://linux.do
+- **友链.linux.do**： https://linux.do
